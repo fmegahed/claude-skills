@@ -26,6 +26,7 @@
 | D20 | 2026-10-19 | The website has a light theme only. | claude | fmm | question | "Light theme only (Recommended)" (2026-10-19) | session b36ad167 |
 | D21 | 2026-10-19 | The video skill uses ElevenLabs when the user gives an API key, and else the free Microsoft neural voices. This applies to the generalization of the video skill (O6), not to version 1 of this repository. | fmm | fmm | chat | "For the video, use ELEVEN_LABS_API if the user is willing to provide an API key for them. Otherwise, use the free microsoft neural voices." (2026-10-19) | session b36ad167 |
 | D22 | 2026-10-20 | Use short, direct section headers in the record README template (Folders, Local build). | fmm | fmm | chat | "Yes update the template." (2026-10-20) | b36ad167-66f5-45af-9d6c-bf3f817c6f58 |
+| D23 | 2026-10-20 | The website can show extra pages: site.config.json lists project files (for example a rendered analysis), the build copies them to pages/ and links them, and the workflow runs on each push to main. | claude | fmm | chat | "Add the skill feature, and publish F1 with attribution" (2026-10-20) | b36ad167-66f5-45af-9d6c-bf3f817c6f58 |
 
 ## Corrections
 
