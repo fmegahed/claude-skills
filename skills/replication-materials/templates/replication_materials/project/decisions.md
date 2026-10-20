@@ -4,7 +4,7 @@
 
 | ID | Date | Decision | Proposed by | Decided by | How | Evidence | Source |
 |---|---|---|---|---|---|---|---|
-| D1 | {{DATE}} | Keep a replication record with the replication-materials skill. | claude | {{OWNER_ID}} | chat | {{OWNER_NAME}} asked for replication materials ({{DATE}}). | {{SESSION}} |
+| D1 | {{DATE}} | Keep a replication record with the replication-materials skill. | claude | {{OWNER_ID}} | chat | "[the words of the request]" ({{DATE}}) | {{SESSION}} |
 
 ## Corrections
 

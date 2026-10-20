@@ -1,6 +1,6 @@
 # {{PROJECT}}
 
-<Write one paragraph here. State the question of the project and what the record holds.>
+[Write one paragraph here. State the question of the project and what the record holds.]
 
 People: {{OWNER_NAME}} (Owner). The full list is in `project/roadmap.md`.
 
