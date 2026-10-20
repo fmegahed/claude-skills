@@ -1,0 +1,14 @@
+Light theme (body text, links, UI on page backgrounds):
+WarmWhite  Black 19.96 | MiamiRed 5.74 | AccentRed 6.92 | DarkTan 5.22 | SlateBlue 7.47 | MediumGray 5.46
+LightTan   Black 17.70 | MiamiRed 5.09 | AccentRed 6.14 | DarkTan 4.63 | MediumGray 4.84
+White      MiamiRed 6.04 | MediumGray 5.74
+
+Dark-theme candidates (no black background is in the brand chart):
+SlateBlue  White 7.86 | WarmWhite 7.47 | LightTan 6.62 | MediumTan 4.72 | CornYellow 6.31 | MiamiRed 1.30
+Black      WarmWhite 19.96 | LightTan 17.70 | MediumTan 12.61 | CornYellow 16.88 | MiamiRed 3.48 | AccentRed 2.88
+DarkTan    White 5.49 | WarmWhite 5.22 | LightTan 4.63
+
+Red fills with text on them (buttons, ribbons):
+MiamiRed   White 6.04 | WarmWhite 5.74 | LightTan 5.09
+
+Non-text UI (3:1 needed): Miami Red border/bar on Black 3.48 | on SlateBlue 1.30
