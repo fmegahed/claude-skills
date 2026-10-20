@@ -1,0 +1,5 @@
+{
+  "project": "{{PROJECT}}",
+  "repository": "{{REPOSITORY}}",
+  "format_version": 1
+}
