@@ -34,22 +34,31 @@ function splitRow(line) {
 
 const isRow = (l) => l !== undefined && l.trim().startsWith("|");
 
-export function parseTables(text, file) {
-  const lines = text.split(/\r?\n/);
-  const tables = [];
-  let heading = null;
+// For each line, true when it is a code-fence line or lies inside a code fence.
+export function fenceFlags(lines) {
   let fence = null;
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
+  return lines.map((line) => {
     const f = line.match(/^\s*(```+|~~~+)/);
     if (fence) {
       if (f && f[1][0] === fence[0] && f[1].length >= fence.length) fence = null;
-      continue;
+      return true;
     }
     if (f) {
       fence = f[1];
-      continue;
+      return true;
     }
+    return false;
+  });
+}
+
+export function parseTables(text, file) {
+  const lines = text.split(/\r?\n/);
+  const tables = [];
+  const inFence = fenceFlags(lines);
+  let heading = null;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (inFence[i]) continue;
     const h = line.match(/^#{1,6}\s+(.*?)\s*#*\s*$/);
     if (h) {
       heading = h[1];
