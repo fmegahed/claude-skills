@@ -71,3 +71,10 @@ test("theme override from config", () => {
   const html = pageShell({ path: "index.html", title: "Home", body: "", model: model({ accent: "#3E5468" }) });
   assert.ok(html.includes("--accent: #3E5468"));
 });
+
+test("button boundary is not --rule alone", () => {
+  const css = themeCss(DEFAULT_TOKENS);
+  const rule = css.match(/^button, \.button \{[^}]*\}/m)[0];
+  assert.match(rule, /border:[^;]*var\(--(ink|accent-strong)\)/);
+  assert.ok(!/border:[^;]*var\(--rule\)/.test(rule));
+});

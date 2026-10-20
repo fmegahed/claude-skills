@@ -93,7 +93,9 @@ pre code { background: none; padding: 0; }
 .site-nav a { color: var(--on-accent); }
 .site-nav a[aria-current="page"] { font-weight: 700; text-decoration: underline; text-underline-offset: 0.25em; text-decoration-thickness: 3px; }
 .site-header :focus-visible { outline-color: var(--on-accent); }
-button, .button { background: var(--surface); color: var(--ink); border: 1px solid var(--rule); font: inherit; cursor: pointer; }
+button, .button { background: var(--tan); color: var(--ink); border: 2px solid var(--ink); font: inherit; cursor: pointer; }
+button:hover, .button:hover { background: var(--surface); }
+button[aria-pressed="true"] { background: var(--accent-strong); color: var(--on-accent); border-color: var(--accent-strong); }
 main { max-width: 72rem; margin: 0 auto; padding: 1.5rem 16px 3rem; }
 .site-footer { background: var(--tan); border-top: 1px solid var(--rule); }
 .site-footer .inner { max-width: 72rem; margin: 0 auto; padding: 1rem 16px; color: var(--muted); }
