@@ -21,7 +21,12 @@ export function readPeople(roadmapText, file) {
   const table = findTable(parseTables(roadmapText, file), "People", PEOPLE_COLUMNS, file);
   const people = new Map();
   for (const [id, name] of Object.entries(BUILT_IN_PEOPLE)) people.set(id, { id, name, role: "", link: "" });
-  for (const { cells: c } of table.rows) {
+  for (const { line, cells: c } of table.rows) {
+    // A row must not replace a built-in name: that would change who a decision shows (A3).
+    if (Object.hasOwn(BUILT_IN_PEOPLE, c.ID)) {
+      throw new RecordFormatError(file, line,
+        `ID "${c.ID}" is a built-in ID. Do not use ${Object.keys(BUILT_IN_PEOPLE).join(", ")} in ## People.`);
+    }
     people.set(c.ID, { id: c.ID, name: c.Name, role: c.Role, link: c.Link });
   }
   return people;
@@ -67,7 +72,9 @@ export function readDecisions(text, file, people) {
   });
 }
 
-const RULING = /\bRuling(?:\s+\d+)?:\s*(.+)$/;
+// A ruling line starts with "Ruling:" or "Ruling <n>:", after an optional "- ", backtick
+// and "Task <n>:" or "Final:" prefix. Prose that mentions "Ruling:" later in a line is not a ruling.
+const RULING = /^\s*(?:-\s+)?(`)?(?:(?:Task \d+[a-z]?|Final):\s+)?Ruling(?:\s+\d+)?:\s*(.+)$/;
 
 export function readRulings(text, ledgerPath) {
   const base = ledgerPath.split("/").pop();
@@ -86,7 +93,8 @@ export function readRulings(text, ledgerPath) {
     rulings.push({
       id: `R-${date}-${topic}-${rulings.length + 1}`,
       date,
-      text: r[1].replace(/^`+|`+$/g, "").trim(),
+      // Only the form "`Ruling: x`" wraps the line in backticks: then drop the closing one.
+      text: (r[1] ? r[2].replace(/`\s*$/, "") : r[2]).trim(),
       proposedBy: ["claude"],
       decidedBy: ["claude"],
       how: "ruling",

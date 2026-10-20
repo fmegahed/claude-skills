@@ -4,6 +4,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 import { parseTables, findTable, readMeta, RecordFormatError } from "./tables.mjs";
+import { DEFAULT_TOKENS } from "./html.mjs";
 import {
   readPeople, readDecisions, readRulings, readCorrectionsTable, applyCorrections,
 } from "./decisions.mjs";
@@ -22,6 +23,8 @@ export const CALL_CSV_COLUMNS = [
 export const DOC_KINDS = ["design", "plan", "ledger", "investigation", "review", "findings"];
 
 const CONFIG_FILE = ".replication/site.config.json";
+const REPOSITORY = /^https:\/\/github\.com\/[^/]+\/[^/]+$/;
+const HEX_COLOUR = /^#[0-9A-Fa-f]{6}$/;
 const TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?Z$/;
 const DATE_PREFIX = /^(\d{4}-\d{2}-\d{2})-/;
 const round3 = (n) => Math.round(n * 1000) / 1000;
@@ -86,18 +89,32 @@ function loadConfig(root) {
   } catch (e) {
     throw new RecordFormatError(CONFIG_FILE, 1, `not valid JSON (${e.message}).`);
   }
-  if (typeof raw.format_version !== "number") {
-    throw new RecordFormatError(CONFIG_FILE, 1, "format_version must be a number.");
-  }
+  const bad = (detail) => new RecordFormatError(CONFIG_FILE, 1, detail);
+  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) throw bad("the file must hold a JSON object.");
+  if (typeof raw.format_version !== "number") throw bad("format_version must be a number.");
   if (raw.format_version > FORMAT_VERSION) {
     throw new Error(
       `${CONFIG_FILE} has format_version ${raw.format_version}, but this skill reads version ${FORMAT_VERSION}. ` +
       "Run the update procedure of the replication-materials skill.");
   }
-  return {
-    project: raw.project, repository: raw.repository,
-    format_version: raw.format_version, theme: raw.theme ?? {},
-  };
+  if (typeof raw.project !== "string" || raw.project.trim() === "") throw bad("project must be a non-empty string.");
+  // The pages put these values into links and CSS, so only these forms are allowed.
+  if (typeof raw.repository !== "string" || !REPOSITORY.test(raw.repository)) {
+    throw bad(`repository must look like https://github.com/[owner]/[repo], not "${raw.repository}".`);
+  }
+  const theme = raw.theme === undefined ? {} : raw.theme;
+  if (theme === null || typeof theme !== "object" || Array.isArray(theme)) {
+    throw bad('theme must be an object, for example { "accent": "#00563F" }.');
+  }
+  for (const [key, value] of Object.entries(theme)) {
+    if (!Object.hasOwn(DEFAULT_TOKENS, key)) {
+      throw bad(`theme key "${key}" is not a token. Use one of: ${Object.keys(DEFAULT_TOKENS).join(", ")}.`);
+    }
+    if (typeof value !== "string" || !HEX_COLOUR.test(value)) {
+      throw bad(`theme value ${key} "${value}" must look like #RRGGBB.`);
+    }
+  }
+  return { project: raw.project, repository: raw.repository, format_version: raw.format_version, theme };
 }
 
 function countTasks(base, rel, pattern, file, line, what) {
@@ -215,7 +232,8 @@ function readCalls(base) {
     const s = entry(f.slice(0, -"-calls.csv".length));
     parseCsv(text).forEach((r, k) => {
       s.calls += 1;
-      s.costUsd += number(r.cost_usd, "cost_usd", rel, k + 2);
+      // A failed call can have no cost: an empty cell counts as 0 (Task 4 ruling).
+      s.costUsd += r.cost_usd.trim() === "" ? 0 : number(r.cost_usd, "cost_usd", rel, k + 2);
     });
   }
   const list = [...services.values()].sort((a, b) => a.service.localeCompare(b.service))

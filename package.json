@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "test": "node --test \"tests/**/*.test.mjs\"",
-    "test:a11y": "node skills/replication-materials/scripts/build-site.mjs --root tests/fixtures/full --out tests/.site && playwright test"
+    "test:a11y": "node skills/replication-materials/scripts/build-site.mjs --root tests/fixtures/full --out tests/.site && playwright test",
+    "test:a11y:record": "node skills/replication-materials/scripts/build-site.mjs --root . --out tests/.record-site && playwright test -c playwright.record.config.mjs"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.13.0",

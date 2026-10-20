@@ -57,6 +57,10 @@ The `Source` and `Session` columns hold the session ID.
    - Tell them that Pages needs a public repository, or a paid plan for a private repository.
    - Continue only when `git remote -v` shows the remote.
 3. If the remote is not on `github.com`, stop. Tell the person that version 1 supports GitHub only.
+   - Read the default branch: `gh repo view --json defaultBranchRef --jq .defaultBranchRef.name`.
+   - A new empty remote has no default branch. Then read the local branch: `git branch --show-current`.
+   - If the branch is not `main`, stop. Ask the person what to do. The workflow and the links use `main`.
+   - Do not rename a branch before the person agrees. Do not push a new `main` before the person agrees.
 4. Copy these files. Do not replace a file that exists. Report each existing file to the person.
 
    | From `<skill>/` | To the project |
@@ -74,8 +78,15 @@ The `Source` and `Session` columns hold the session ID.
    - Make `CLAUDE.md` if it does not exist. If the markers are already in it, do not add the block again.
    - If a `DESCRIPTION` file is at the root, add `^replication_materials$` and `^\.replication$` to `.Rbuildignore`.
 6. Turn on Pages: `gh api -X POST repos/{owner}/{repo}/pages -f build_type=workflow`.
-   - HTTP 409 means that Pages exists. Then run `gh api repos/{owner}/{repo}/pages --jq .build_type`.
-   - If that is not `workflow`, run `gh api -X PUT repos/{owner}/{repo}/pages -f build_type=workflow`.
+   - HTTP 409 means that Pages exists. Read it: `gh api repos/{owner}/{repo}/pages --jq '{build_type, html_url}'`.
+   - Find other workflows that deploy to Pages: `grep -l deploy-pages .github/workflows/*.y*ml | grep -v replication-site.yml`.
+   - If the build type is `legacy`, or the `grep` command prints a file, the project already has a site. Stop.
+   - Give the person the URL of that site. Ask if the record website can replace it.
+   - Do not run `gh api -X PUT repos/{owner}/{repo}/pages` before the person says yes. The PUT replaces the site.
+   - After a yes for a `legacy` site, run `gh api -X PUT repos/{owner}/{repo}/pages -f build_type=workflow`.
+   - After a yes for another workflow, ask the person to remove that workflow. Do not change it yourself.
+   - After a no, keep the record without the website. Delete the workflow file.
+   - If the build type is `workflow` and the `grep` command prints nothing, continue.
    - If GitHub refuses (for example, a private repository on a free plan), stop. Give the person three choices:
      make the repository public; use a paid plan (GitHub Education gives Pro to teachers); or keep the record without the website.
    - Wait for the choice. For the record without the website, delete the workflow file.
@@ -88,7 +99,8 @@ The `Source` and `Session` columns hold the session ID.
      `grep -nE '\[[^]]+\]([^(]|$)' replication_materials/README.md replication_materials/project/decisions.md`
 8. Run the build check. Commit the set-up files on `main` and push.
 9. Watch the first workflow run. When it passes, report the website URL (commands in `references/site.md`).
-   - After the first push, check for a `Replication site` run: `gh run list --workflow replication-site.yml --limit 1`.
+   - After the first push, look for the run of the pushed commit:
+     `gh run list --workflow replication-site.yml --commit "$(git rev-parse HEAD)" --limit 1`.
    - If no run has started within 60 seconds, start it: `gh workflow run replication-site.yml --ref main`.
    - The workflow template has `workflow_dispatch`, so this command works.
    - Then watch the new run.
@@ -100,7 +112,11 @@ The `Source` and `Session` columns hold the session ID.
    - ID: the next `D` number. Date: today. Source: the session ID.
    - Proposed by and Decided by: write only what the session or the words of the person show. Else write `unknown`.
    - How: an allowed value. A multiple-choice question in Claude Code is `question`.
-   - Evidence: a quote of at most 25 words and its date, as `"..." (YYYY-MM-DD)`. Write nothing else in this cell.
+   - Evidence: a quote of at most 25 words and its date, as `"..." (YYYY-MM-DD)`.
+   - For How `question`, quote the label of the chosen option: `"<label>" (YYYY-MM-DD)`.
+   - For How `review`, `measurement` or `plan-approval`, you can name the record line in place of a quote.
+     An example is `findings/2026-10-19-noise-findings.md, Table 2`.
+   - Write nothing else in the Evidence cell.
 2. When the person accepts an option that Claude Code recommended, write Proposed by `claude` and Decided by the person ID.
 3. When the person approves a plan, add or update its row in `## Milestones` of `roadmap.md`.
    - Write each path relative to `replication_materials/`, for example `plans/2026-10-18-m1-plan.md`.
@@ -116,7 +132,8 @@ The `Source` and `Session` columns hold the session ID.
    - If the code work is in a git worktree, commit the records in the main checkout, on `main`.
    - If the code work is on a branch in the main checkout, commit the records on that branch.
    - On that branch, do not push without asking. The records reach `main` at the merge.
-   - After a push to `main`, check that the workflow run passed: `gh run list --workflow replication-site.yml --limit 1`.
+   - After a push to `main`, check that the run of the pushed commit passed:
+     `gh run list --workflow replication-site.yml --commit "$(git rev-parse HEAD)" --limit 1`.
 
 ## End of a milestone
 
@@ -174,5 +191,6 @@ The `Source` and `Session` columns hold the session ID.
 | "A ruling is a decision, so it goes in `decisions.md`." | The build reads rulings from the ledger copy. |
 | "`milestone-close` is a better stage name." | Use only the allowed values. |
 | "The edit is small, so the build will pass." | Run the build check after each edit. |
-| "A short note in Evidence helps the reader." | Evidence holds the quote and its date only. |
+| "A short note in Evidence helps the reader." | Evidence holds a quote and its date, or the name of a record line. Nothing else. |
 | "The cost is small. The person will approve it." | Make no paid call before the person approves a budget row. |
+| "Pages exists, so I set its build type to `workflow`." | That can replace the site of the project. Ask the person first. |

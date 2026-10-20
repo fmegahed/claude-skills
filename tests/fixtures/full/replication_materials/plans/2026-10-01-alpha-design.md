@@ -7,9 +7,18 @@
 
 ## Method
 
-The estimate is $\hat{p}$, the share of correct answers.
+The estimate is $\hat{p}$, the share of correct answers. The set is $S=\{x : x > 0\}$ and the product is $a*b*c$.
+
+$$
+\begin{aligned}
+a &= b \\
+c &= d
+\end{aligned}
+$$
 
 ## Results
+
+![Accuracy by prompt](figures/accuracy.png)
 
 | A | B | C | D | E | F | G | H | I | J | K | L |
 |---|---|---|---|---|---|---|---|---|---|---|---|

@@ -53,6 +53,13 @@ test("document page embeds markdown safely", () => {
   const ctx = JSON.parse(html.match(/id="doc-ctx">([\s\S]*?)<\/script>/)[1]);
   assert.equal(ctx.folder, "plans");
   assert.equal(ctx.pages["plans/2026-10-02-alpha-plan.md"], "../2026-10-02-alpha-plan/index.html");
+  assert.equal(ctx.blobBase, "https://github.com/example/fixture/blob/main/replication_materials/");
+});
+
+test("document context gives the raw base for images", () => {
+  const html = site().get("docs/plans/2026-10-01-alpha-design/index.html");
+  const ctx = JSON.parse(html.match(/id="doc-ctx">([\s\S]*?)<\/script>/)[1]);
+  assert.equal(ctx.rawBase, "https://raw.githubusercontent.com/example/fixture/main/replication_materials/");
 });
 
 test("progress shows tasks and calls", () => {
@@ -60,6 +67,15 @@ test("progress shows tasks and calls", () => {
   assert.ok(html.includes("2 of 3"));
   assert.ok(html.includes("jev"));
   assert.ok(html.includes("0.003"));
+});
+
+test("progress shows - for a plan without a ledger", () => {
+  const m = model();
+  const m3 = m.milestones.find((x) => x.id === "M3");
+  Object.assign(m3, { plan: "plans/2026-10-02-alpha-plan.md", ledger: null, tasksTotal: 3, tasksDone: null });
+  const row = renderSite(m).get("progress/index.html").match(/<tr><td>M3<\/td>.*<\/tr>/)[0];
+  assert.ok(!row.includes("0 of 3"), row);
+  assert.match(row, /<td>-<\/td><\/tr>$/);
 });
 
 test("every table is a focusable labelled region with caption", () => {

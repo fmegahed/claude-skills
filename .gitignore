@@ -1,6 +1,7 @@
 node_modules/
 _site/
 tests/.site/
+tests/.record-site/
 test-results/
 playwright-report/
 .superpowers/

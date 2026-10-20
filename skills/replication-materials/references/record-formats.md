@@ -73,7 +73,7 @@ Rules for all tables:
 
 ### People
 
-- `ID` is short, for example `fmm`. Do not use the built-in IDs `claude`, `subagent` or `unknown`.
+- `ID` is short, for example `fmm`. Do not use the built-in IDs `claude`, `subagent` or `unknown`. The build stops on them.
 - `Link` is a URL or `-`.
 
 ### Milestones
@@ -164,8 +164,10 @@ A wrong `Evidence` cell: `"5 folds (Recommended)" (2026-10-19). Claude Code prop
 ### Rulings
 
 - Rulings are decisions of Claude Code. They stay in the ledgers. Never copy a ruling into `decisions.md`.
-- The build reads each `plans/*-ledger.md` file. It finds each line that contains `Ruling:` or `Ruling <n>:`, outside a code fence.
-- The forms in use are `Ruling:`, `- Ruling:`, `Ruling 3:`, `- Ruling 3:`, `Task 4: Ruling:` and `Final: Ruling:`.
+- The build reads each `plans/*-ledger.md` file, outside a code fence. A ruling line starts with one of these forms:
+  `Ruling:`, `Ruling 3:`, `- Ruling:`, `- Ruling 3:`, `Task 4: Ruling:`, `Task 13b: Ruling:`, `Final: Ruling:`.
+- A backtick can come before `Ruling`, as in ``- `Ruling: text` ``. Then the build removes the backtick at the end.
+- A line that has `Ruling:` later in the line is not a ruling. An example is a deferred finding that quotes `Ruling:`.
 - The build adds each ruling to the Decisions page with How `ruling`, and Proposed by and Decided by `claude`.
 - The ID of a ruling is `R-<ledger file date>-<topic>-<n>`. `<n>` is the order of the ruling in the ledger, from 1.
 - Example: the third ruling in `plans/2026-10-18-m1-ledger.md` is `R-2026-10-18-m1-3`.
@@ -229,6 +231,8 @@ Values of `Stage`:
 
 - The first line is `time_utc,call_id,purpose,model,request_id,status,latency_ms,input_tokens,output_tokens,cost_usd`.
 - Write one line for each call. `cost_usd` is a number.
+- Leave `cost_usd` empty when a call has no cost, for example a failed call. The build counts it as 0.
+- Any other text in `cost_usd` stops the build.
 - Claude Code writes the lines for the calls that it makes (probes, tests).
 - When the project code makes paid calls, that code writes the same format. The skill supplies no logging helper.
 - Stop when the log reaches `Max calls` or `Max cost (USD)` of the budget. Ask for a new row.

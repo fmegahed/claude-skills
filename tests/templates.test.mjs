@@ -70,6 +70,12 @@ test("CLAUDE block has both markers and the D15 rule", () => {
   assert.match(b, /replication_materials\//);
 });
 
+test("CLAUDE block says to copy the ledger before the workspace is deleted", () => {
+  // superpowers deletes .superpowers/sdd/<plan>/ right after the final review.
+  assert.match(read("CLAUDE-block.md"),
+    /^- Before you delete `\.superpowers\/sdd\/<plan>\/`, copy its ledger with the end-of-milestone procedure\.$/m);
+});
+
 test("templates contain no key-like text", () => {
   for (const f of allFiles(TEMPLATES)) {
     assert.doesNotMatch(readFileSync(f, "utf8"), /(sk-|ghp_|gho_|api[_-]?key\s*=)/i, f);

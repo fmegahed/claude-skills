@@ -83,6 +83,61 @@ test("calls summary", () => {
   assert.equal(jev.maxCostUsd, 0.01);
 });
 
+// Writes a project from the fixture, changes one file, and returns loadProject or its error.
+function withChange(rel, change, fn) {
+  const dir = tempCopy();
+  try {
+    const p = join(dir, rel);
+    writeFileSync(p, change(readFileSync(p, "utf8")));
+    return fn(dir);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+const CSV = "replication_materials/calls/jev-calls.csv";
+
+test("an empty cost_usd counts as 0", () => {
+  const jev = withChange(CSV, (s) => s + "2026-10-03T10:02:00Z,c3,failed call,m1,r3,error,900,100,0,\n",
+    (dir) => loadProject(dir, OPTS).calls.services.find((s) => s.service === "jev"));
+  assert.equal(jev.calls, 3);
+  assert.equal(jev.costUsd, 0.003);
+});
+
+test("a non-numeric cost_usd stops the build", () => {
+  withChange(CSV, (s) => s + "2026-10-03T10:02:00Z,c3,bad call,m1,r3,ok,900,100,0,free\n",
+    (dir) => assert.throws(() => loadProject(dir, OPTS), /calls\/jev-calls\.csv:4: cost_usd "free" is not a number/));
+});
+
+test("site.config.json is checked at load", () => {
+  const good = { project: "P", repository: "https://github.com/o/r", format_version: 1 };
+  const cases = [
+    [null, /must hold a JSON object/],
+    [[], /must hold a JSON object/],
+    [{ ...good, project: undefined }, /project must be a non-empty string/],
+    [{ ...good, project: "" }, /project must be a non-empty string/],
+    [{ ...good, project: null }, /project must be a non-empty string/],
+    [{ ...good, repository: undefined }, /repository must look like https:\/\/github\.com\/\[owner\]\/\[repo\]/],
+    [{ ...good, repository: null }, /repository must look like/],
+    [{ ...good, repository: "https://gitlab.com/o/r" }, /repository must look like/],
+    [{ ...good, repository: "https://github.com/o/r/" }, /repository must look like/],
+    [{ ...good, repository: "javascript:alert(1)" }, /repository must look like/],
+    [{ ...good, format_version: null }, /format_version must be a number/],
+    [{ ...good, format_version: undefined }, /format_version must be a number/],
+    [{ ...good, theme: null }, /theme must be an object/],
+    [{ ...good, theme: { accent: "#fff" } }, /theme value accent "#fff" must look like #RRGGBB/],
+    [{ ...good, theme: { accent: "red; } body { display: none" } }, /theme value accent/],
+    [{ ...good, theme: { accent: null } }, /theme value accent "null"/],
+    [{ ...good, theme: { "x: red; } a {": "#000000" } }, /theme key "x: red; } a \{" is not a token/],
+  ];
+  for (const [config, re] of cases) {
+    withChange(".replication/site.config.json", () => JSON.stringify(config), (dir) =>
+      assert.throws(() => loadProject(dir, OPTS), (e) => e.name === "RecordFormatError"
+        && e.message.startsWith(".replication/site.config.json:1: ") && re.test(e.message), JSON.stringify(config)));
+  }
+  withChange(".replication/site.config.json", () => JSON.stringify({ ...good, theme: { accent: "#00563F" } }),
+    (dir) => assert.deepEqual(loadProject(dir, OPTS).config.theme, { accent: "#00563F" }));
+});
+
 test("build info and config", () => {
   const m = model();
   assert.deepEqual(m.build, { sha: "abc1234", date: "2026-10-19" });

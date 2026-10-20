@@ -50,6 +50,15 @@ test("reads two decisions and resolves people", () => {
   assert.equal(ds[0].line, 7);
 });
 
+test("a People row with a built-in ID throws", () => {
+  for (const id of ["claude", "subagent", "unknown"]) {
+    const bad = ROADMAP + `| ${id} | Someone Else | RA | - |\n`;
+    assert.throws(() => readPeople(bad, "project/roadmap.md"),
+      new RegExp(`^RecordFormatError: project/roadmap\\.md:9: ID "${id}" is a built-in ID`), id);
+  }
+  assert.equal(readPeople(ROADMAP + "| constructor | C. Name | RA | - |\n", "r.md").get("constructor").name, "C. Name");
+});
+
 test("unknown person ID throws", () => {
   const bad = DECISIONS.replace("| fmm | chat", "| xyz | chat");
   assert.throws(() => readDecisions(bad, "project/decisions.md", people()),
@@ -93,6 +102,27 @@ test("rulings in all seven line forms", () => {
   assert.equal(rs[0].file, LEDGER_PATH);
   assert.equal(rs[0].line, 2);
   assert.equal(rs[0].corrected, null);
+});
+
+test("prose that mentions Ruling: mid-line is not a ruling", () => {
+  const text = [
+    "Ruling: real",
+    "Task 3: minor (deferred): empty ruling text (`Ruling: ` with only spaces) shifts the numbering.",
+    "See the note. Ruling: not a ruling either",
+    "| T3 -> T4 | readRulings | See Ruling 3: a table cell |",
+    "Task 13b: Ruling: second",
+  ].join("\n");
+  assert.deepEqual(readRulings(text, LEDGER_PATH).map((r) => r.text), ["real", "second"]);
+});
+
+test("a ruling that starts or ends with inline code keeps it", () => {
+  const text = [
+    "Ruling 3: `readDecisions` returns `corrected: null`.",
+    "Ruling: keep `a` and `b`",
+    "- `Ruling: wrapped`",
+  ].join("\n");
+  assert.deepEqual(readRulings(text, LEDGER_PATH).map((r) => r.text),
+    ["`readDecisions` returns `corrected: null`.", "keep `a` and `b`", "wrapped"]);
 });
 
 test("ruling inside a code fence is ignored", () => {

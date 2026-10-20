@@ -153,7 +153,8 @@ export function renderProgress(model) {
   const msRows = model.milestones.map((m) => tr([
     escapeHtml(m.id), escapeHtml(m.title), escapeHtml(m.state),
     m.plan ? recordRef(model, path, m.plan) : "-",
-    m.tasksTotal === null ? "-" : `${m.tasksDone ?? 0} of ${m.tasksTotal}`,
+    // Count only for a plan with a ledger (spec Section 9).
+    m.tasksTotal === null || m.tasksDone === null ? "-" : `${m.tasksDone} of ${m.tasksTotal}`,
   ]));
   const itemRows = model.openItems.map((o) => tr([o.id, o.item, o.blocks, o.owner].map((s) => escapeHtml(s))));
   const callRows = model.calls.services.map((s) => tr([
@@ -192,10 +193,13 @@ const jsonForScript = (v) => JSON.stringify(v).replace(/</g, "\\u003c");
 export function renderDocument(model, doc) {
   const path = docPath(doc.path);
   const pages = Object.fromEntries(model.documents.map((d) => [d.path, rel(path, docPath(d.path))]));
+  const repo = model.config.repository.replace(/\/$/, "");
   const ctx = {
     folder: doc.path.includes("/") ? doc.path.slice(0, doc.path.lastIndexOf("/")) : "",
     pages,
-    blobBase: `${model.config.repository.replace(/\/$/, "")}/blob/main/replication_materials/`,
+    blobBase: `${repo}/blob/main/replication_materials/`,
+    // Images load the raw file (Ruling 17). loadProject accepts only https://github.com/<owner>/<repo>.
+    rawBase: `${repo.replace(/^https:\/\/github\.com\//, "https://raw.githubusercontent.com/")}/main/replication_materials/`,
   };
   const sri = (c) => `src="${c.src}" integrity="${c.integrity}" crossorigin="anonymous"`;
   const head = `<link rel="stylesheet" href="${CDN.katexCss.src}" integrity="${CDN.katexCss.integrity}" crossorigin="anonymous">`;

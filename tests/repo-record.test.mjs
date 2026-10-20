@@ -21,6 +21,19 @@ test("the repository record builds", () => {
   assert.ok(ids.includes("D21"));
 });
 
+test("the CLAUDE.md block of the repository equals the template block", () => {
+  const block = readFileSync("skills/replication-materials/templates/CLAUDE-block.md", "utf8").trim();
+  assert.ok(readFileSync("CLAUDE.md", "utf8").includes(block));
+});
+
+test("the Tests workflow checks the fixture site and the record site with axe", () => {
+  const y = readFileSync(".github/workflows/tests.yml", "utf8");
+  assert.match(y, /^\s+- run: npm run test:a11y$/m);
+  assert.match(y, /^\s+- run: npm run test:a11y:record$/m);
+  const scripts = JSON.parse(readFileSync("package.json", "utf8")).scripts;
+  assert.match(scripts["test:a11y:record"], /--root \. --out tests\/\.record-site && playwright test -c playwright\.record\.config\.mjs$/);
+});
+
 test("the repository copy of the build script equals the skill copy", () => {
   const files = allFiles(".replication").filter((p) => !p.endsWith("site.config.json"));
   assert.ok(files.length > 0);

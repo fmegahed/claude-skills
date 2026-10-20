@@ -7,7 +7,7 @@
 | Home | The project name and the lead paragraph of the record README. Status: the current milestone, the next milestone and the date. A strip of the milestones in order, with their states. Counts of decisions by each person, by Claude Code and by Unknown. Links to the repository and to the other pages. |
 | Records | A table of all documents in `replication_materials/`, in the order of the date in the file name. Columns: date, title, kind, status. Filter buttons by kind. Each title links to its document page. |
 | Decisions | All decisions: the rows of `decisions.md` and the `Ruling:` lines of the ledgers. Columns: ID, date, decision, proposed by, decided by, how, evidence, source document. Filter buttons by "decided by" and by "how". A corrected record shows the new values and "Corrected by {name}, {date}". |
-| Progress | The milestones with their states and plans. The open items and blockers from `roadmap.md`. For each plan with a ledger: the tasks complete out of the tasks in the plan. A table of paid calls. |
+| Progress | The milestones with their states and plans. The open items and blockers from `roadmap.md`. For each plan with a ledger: the tasks complete out of the tasks in the plan. A plan without a ledger shows `-`. A table of paid calls. |
 | Process | The events of `process.md` by date, and a second view grouped by stage. |
 | Document pages | One page for each markdown file in `plans/`, `findings/`, `probes/` and `calls/`, and for the record README. |
 
@@ -47,6 +47,10 @@ The footer of each page says "Built from commit {sha} on {date}." It links to th
 ```
 
 - New tokens must keep the contrast rules below.
+- The build checks `site.config.json` and stops on a bad value:
+  - `project` is a text that is not empty.
+  - `repository` is `https://github.com/<owner>/<repo>`, with no `/` at the end.
+  - Each `theme` key is a token name. Each `theme` value is `#RRGGBB`.
 
 ## Accessibility: WCAG 2.2 AA
 
@@ -76,6 +80,10 @@ The footer of each page says "Built from commit {sha} on {date}." It links to th
 - Each page embeds its markdown as JSON in a `<script type="application/json">` tag, with `<` escaped.
 - The browser renders the markdown with marked 12.0.2, KaTeX 0.16.9 and DOMPurify 3.4.16 from cdnjs. Each script tag has a Subresource Integrity hash.
 - DOMPurify removes HTML tags from the markdown. Text such as `<topic>` outside a code span disappears. Write fill-in markers as `[...]`.
+- Math between `$...$` (on one line) or `$$...$$` goes to KaTeX as written. marked does not change it.
+- A task-list checkbox (`- [ ]`, `- [x]`) gets the name "Not done" or "Done" for screen readers.
+- A relative link to a record document goes to its page. Another relative link goes to the file on GitHub.
+- A relative image loads from `https://raw.githubusercontent.com/<owner>/<repo>/main/replication_materials/`. This works only in a public repository.
 - Without JavaScript, the page shows the markdown as plain text.
 
 ## Workflow
@@ -87,29 +95,35 @@ The file is `.github/workflows/replication-site.yml`.
 - Concurrency group `pages`. A new run does not cancel a running deploy.
 - Each action is pinned to a full commit SHA, with the tag in a comment.
 - The first line is the version line, for example `# replication-materials 1.0.0`.
-- Check the newest run: `gh run list --workflow replication-site.yml --limit 1`.
-- Wait for the newest run to end:
+- The workflow and the links of the website use the branch `main`. Set-up stops when the default branch is not `main`.
+- Check the run of the pushed commit: `gh run list --workflow replication-site.yml --commit "$(git rev-parse HEAD)" --limit 1`.
+- After the first push, if no run has started within 60 seconds, start it: `gh workflow run replication-site.yml --ref main`.
+- The workflow template has `workflow_dispatch`, so this command works.
+- Wait for the run of the pushed commit to end:
 
 ```bash
-gh run watch "$(gh run list --workflow replication-site.yml --limit 1 --json databaseId --jq '.[0].databaseId')" --exit-status
+gh run watch "$(gh run list --workflow replication-site.yml --commit "$(git rev-parse HEAD)" --limit 1 --json databaseId --jq '.[0].databaseId')" --exit-status
 ```
-- After the first push, check for a `Replication site` run: `gh run list --workflow replication-site.yml --limit 1`.
-- If no run has started within 60 seconds, start it: `gh workflow run replication-site.yml --ref main`.
-- The workflow template has `workflow_dispatch`, so this command works.
-- Then watch the new run.
 
 ## GitHub Pages
 
 1. Turn on Pages: `gh api -X POST repos/{owner}/{repo}/pages -f build_type=workflow`.
-2. HTTP 409 means that Pages exists. Read its build type: `gh api repos/{owner}/{repo}/pages --jq .build_type`.
-3. If the build type is not `workflow`, set it: `gh api -X PUT repos/{owner}/{repo}/pages -f build_type=workflow`.
-4. If GitHub refuses (for example, a private repository on a free plan), stop. Give the person three choices:
+2. HTTP 409 means that Pages exists. Read it: `gh api repos/{owner}/{repo}/pages --jq '{build_type, html_url}'`.
+3. Find other workflows that deploy to Pages: `grep -l deploy-pages .github/workflows/*.y*ml | grep -v replication-site.yml`.
+4. If the build type is `legacy`, or the `grep` command prints a file, the project already has a site.
+   - Stop. Give the person the URL of that site. Ask if the record website can replace it.
+   - Do not run `gh api -X PUT repos/{owner}/{repo}/pages` before the person says yes. The PUT replaces the site.
+   - After a yes for a `legacy` site, run `gh api -X PUT repos/{owner}/{repo}/pages -f build_type=workflow`.
+   - After a yes for another workflow, ask the person to remove that workflow. Do not change it yourself.
+   - After a no, keep the record without the website (step 8).
+5. If the build type is `workflow` and the `grep` command prints nothing, Pages is ready.
+6. If GitHub refuses (for example, a private repository on a free plan), stop. Give the person three choices:
    - Make the repository public.
    - Use a paid plan. GitHub Education gives Pro to teachers.
    - Keep the record without the website.
-5. Do not make the choice for the person. Do not change the visibility of the repository yourself.
-6. For the record without the website, delete `.github/workflows/replication-site.yml`. Keep the rest of the record.
-7. Get the website URL: `gh api repos/{owner}/{repo}/pages --jq .html_url`.
+7. Do not make the choice for the person. Do not change the visibility of the repository yourself.
+8. For the record without the website, delete `.github/workflows/replication-site.yml`. Keep the rest of the record.
+9. Get the website URL: `gh api repos/{owner}/{repo}/pages --jq .html_url`.
 
 ## Update rules
 

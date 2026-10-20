@@ -45,7 +45,18 @@
     var md = JSON.parse(mdEl.textContent);
     var fallback = document.getElementById("doc-fallback");
     var holder = document.createElement("div");
-    holder.innerHTML = DOMPurify.sanitize(marked.parse(md));
+    // marked must not see the math: it would drop "\{", read "*" as emphasis and "\\" as an escape.
+    var shield = shieldMath(md);
+    holder.innerHTML = DOMPurify.sanitize(marked.parse(shield.text));
+    var walker = document.createTreeWalker(holder, NodeFilter.SHOW_TEXT);
+    for (var node = walker.nextNode(); node; node = walker.nextNode()) {
+      if (node.nodeValue.indexOf(shield.key) !== -1) node.nodeValue = restoreMath(node.nodeValue, shield);
+    }
+
+    // marked writes a GFM task item as a bare disabled checkbox. Give each one a name (1.3.1, 4.1.2).
+    Array.prototype.forEach.call(holder.querySelectorAll('input[type="checkbox"]'), function (box) {
+      if (!box.hasAttribute("aria-label")) box.setAttribute("aria-label", box.checked ? "Done" : "Not done");
+    });
 
     if (typeof renderMathInElement === "function") {
       renderMathInElement(holder, {
@@ -69,6 +80,10 @@
     Array.prototype.forEach.call(holder.querySelectorAll("a[href]"), function (a) {
       var target = resolveLink(ctx, a.getAttribute("href"));
       if (target !== null) a.setAttribute("href", target);
+    });
+    Array.prototype.forEach.call(holder.querySelectorAll("img[src]"), function (img) {
+      var src = resolveImage(ctx, img.getAttribute("src"));
+      if (src !== null) img.setAttribute("src", src);
     });
 
     // Each table gets a focusable, distinctly labelled region and column scopes.
