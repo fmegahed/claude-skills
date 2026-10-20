@@ -51,7 +51,8 @@ export function fenceFlags(lines) {
   });
 }
 
-export function parseTables(text, file) {
+// With { lenient: true } a row with the wrong number of cells is skipped instead of thrown.
+export function parseTables(text, file, { lenient = false } = {}) {
   const lines = text.split(/\r?\n/);
   const tables = [];
   const inFence = fenceFlags(lines);
@@ -71,6 +72,7 @@ export function parseTables(text, file) {
       for (; i < lines.length && isRow(lines[i]); i++) {
         const cells = splitRow(lines[i]);
         if (cells.length !== columns.length) {
+          if (lenient) continue;
           throw new RecordFormatError(
             file, i + 1,
             `row has ${cells.length} cells but the header has ${columns.length} (${columns.join(", ")}).`);
@@ -99,10 +101,12 @@ export function findTable(tables, heading, columns, file) {
   return table;
 }
 
-export function readMeta(text) {
+// Reads the title and the first Item/Value table. A document is prose, so a sloppy
+// table elsewhere in it must not stop the build: parsing here is lenient.
+export function readMeta(text, file) {
   const m = text.match(/^# (.*?)\s*$/m);
   const title = m ? m[1] : null;
-  const t = parseTables(text, "").find(
+  const t = parseTables(text, file, { lenient: true }).find(
     (x) => x.columns.length === 2 && x.columns[0] === "Item" && x.columns[1] === "Value");
   const meta = {};
   if (t) for (const r of t.rows) meta[r.cells.Item] = r.cells.Value;

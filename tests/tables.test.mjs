@@ -40,7 +40,14 @@ test("findTable names the missing column", () => {
 });
 
 test("readMeta reads title and Item/Value table", () => {
-  const { title, meta } = readMeta("# My Project\n\n| Item | Value |\n|---|---|\n| Status | Draft |\n");
+  const { title, meta } = readMeta("# My Project\n\n| Item | Value |\n|---|---|\n| Status | Draft |\n", "d.md");
   assert.equal(title, "My Project");
+  assert.equal(meta.Status, "Draft");
+});
+
+test("readMeta ignores a malformed table elsewhere in the document", () => {
+  const text = "# Doc\n\n| A | B |\n|---|---|\n| only one |\n\n| Item | Value |\n|---|---|\n| Status | Draft |\n";
+  const { title, meta } = readMeta(text, "d.md");
+  assert.equal(title, "Doc");
   assert.equal(meta.Status, "Draft");
 });
