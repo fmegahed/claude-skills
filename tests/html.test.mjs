@@ -78,3 +78,10 @@ test("button boundary is not --rule alone", () => {
   assert.match(rule, /border:[^;]*var\(--(ink|accent-strong)\)/);
   assert.ok(!/border:[^;]*var\(--rule\)/.test(rule));
 });
+
+test("the document grid applies only when the rail exists", () => {
+  const css = themeCss(DEFAULT_TOKENS);
+  assert.ok(css.includes(".doc-layout.has-rail"));
+  assert.doesNotMatch(css, /\.doc-layout\s*\{/);
+  assert.doesNotMatch(css, /\.doc-layout #doc-content/);
+});

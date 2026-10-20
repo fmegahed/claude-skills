@@ -100,3 +100,10 @@ test("markdown JSON cannot close the script tag", () => {
   assert.ok(html.includes("\u003c/script"));
   assert.ok(!html.includes("</script><script>alert"));
 });
+
+test("server HTML of a document page has no rail class", () => {
+  const html = site().get("docs/plans/2026-10-01-alpha-design/index.html").replace(/<(script|style)[^]*?<\/\1>/g, "");
+  assert.ok(html.includes('class="doc-layout"'));
+  assert.ok(!html.includes("has-rail"));
+  assert.ok(!html.includes("doc-rail"));
+});

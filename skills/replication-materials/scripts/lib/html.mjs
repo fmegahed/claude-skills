@@ -111,9 +111,9 @@ img, svg { max-width: 100%; height: auto; }
 @media (min-width: 900px) {
   .site-header { position: sticky; top: 0; z-index: 10; }
   html { scroll-padding-top: 8rem; }
-  .doc-layout { display: grid; grid-template-columns: 15rem minmax(0, 1fr); gap: 2rem; align-items: start; }
-  .doc-layout .doc-rail { grid-column: 1; grid-row: 1; position: sticky; top: 8rem; margin: 0; }
-  .doc-layout #doc-content { grid-column: 2; grid-row: 1; }
+  .doc-layout.has-rail { display: grid; grid-template-columns: 15rem minmax(0, 1fr); gap: 2rem; align-items: start; }
+  .doc-layout.has-rail .doc-rail { grid-column: 1; grid-row: 1; position: sticky; top: 8rem; margin: 0; }
+  .doc-layout.has-rail #doc-content { grid-column: 2; grid-row: 1; }
 }
 `;
 }

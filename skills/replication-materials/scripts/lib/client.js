@@ -123,6 +123,7 @@
       });
       rail.appendChild(list);
       target.parentNode.insertBefore(rail, target);
+      target.parentNode.classList.add("has-rail");
     }
   }
 })();
