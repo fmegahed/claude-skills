@@ -2,7 +2,7 @@
 
 | Item | Value |
 |---|---|
-| Status | Draft for approval |
+| Status | Approved (2026-10-19) |
 | Version | 3, dated 2026-10-19. Version 1 went to a builder check by a fresh subagent; version 2 added its answers and D15. Version 3 adds D16 to D20: one repository for all skills, the Miami theme, WCAG 2.2 AA, light theme only. |
 | Repository | `fmegahed/claude-skills` (folder `Code/claude/claude-skills/`) |
 | Owner | Fadel M. Megahed (Miami University) |

@@ -4,7 +4,7 @@
 
 | Item | Value |
 |---|---|
-| Status | Draft for approval |
+| Status | Approved (2026-10-19) |
 | Version | 1, dated 2026-10-19 |
 | Written by | Claude Code (Opus 5.5), with the superpowers writing-plans skill |
 
