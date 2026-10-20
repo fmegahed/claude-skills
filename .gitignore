@@ -4,3 +4,4 @@ tests/.site/
 test-results/
 playwright-report/
 .superpowers/
+skills/narrated-demo-video/assets/brand/*.webp
