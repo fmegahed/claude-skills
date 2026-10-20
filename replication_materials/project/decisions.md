@@ -25,6 +25,7 @@
 | D19 | 2026-10-19 | Everything conforms to WCAG 2.2 AA. | fmm | fmm | chat | "Also build everything to WCAG 2.2 if possible?" (2026-10-19) | session b36ad167 |
 | D20 | 2026-10-19 | The website has a light theme only. | claude | fmm | question | "Light theme only (Recommended)" (2026-10-19) | session b36ad167 |
 | D21 | 2026-10-19 | The video skill uses ElevenLabs when the user gives an API key, and else the free Microsoft neural voices. This applies to the generalization of the video skill (O6), not to version 1 of this repository. | fmm | fmm | chat | "For the video, use ELEVEN_LABS_API if the user is willing to provide an API key for them. Otherwise, use the free microsoft neural voices." (2026-10-19) | session b36ad167 |
+| D22 | 2026-10-20 | Use short, direct section headers in the record README template (Folders, Local build). | fmm | fmm | chat | "Yes update the template." (2026-10-20) | b36ad167-66f5-45af-9d6c-bf3f817c6f58 |
 
 ## Corrections
 
