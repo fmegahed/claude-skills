@@ -36,7 +36,7 @@ After each edit of a record, run this from the root folder of the repository:
 node .replication/build-site.mjs --out "$(mktemp -d)"
 ```
 
-- Success prints `Wrote <n> pages to ...`.
+- Success prints `Wrote <n> pages to ...`. With extra pages, it prints `Wrote <n> pages and <k> extra pages to ...`.
 - An error prints `replication-materials: <file>:<line>: <detail>`. The file is relative to `replication_materials/`.
 - Fix that line and run the check again. Do not commit while the check fails.
 
@@ -134,6 +134,11 @@ The `Source` and `Session` columns hold the session ID.
    - On that branch, do not push without asking. The records reach `main` at the merge.
    - After a push to `main`, check that the run of the pushed commit passed:
      `gh run list --workflow replication-site.yml --commit "$(git rev-parse HEAD)" --limit 1`.
+8. To show a rendered analysis on the website, add it to `pages` in `.replication/site.config.json`.
+   - An example is the HTML of a Quarto or R Markdown file: `{ "file": "analysis.html", "title": "Analysis" }`.
+   - The build copies the file alone. Use a self-contained file: `embed-resources: true` in Quarto, `self_contained: true` in R Markdown.
+   - Commit the file. Each push to `main` builds the website again.
+   - Rules and limits are in `references/site.md`, section Extra pages.
 
 ## End of a milestone
 

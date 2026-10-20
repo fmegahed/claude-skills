@@ -195,3 +195,53 @@ test("parseCsv handles quotes, commas and CRLF", () => {
   const rows = parseCsv('a,b\r\n"x, y","say ""hi"""\r\n1,2\r\n');
   assert.deepEqual(rows, [{ a: "x, y", b: 'say "hi"' }, { a: "1", b: "2" }]);
 });
+
+// Extra pages: files of the project that the website publishes as they are.
+function withPageFiles(files, config, fn) {
+  const dir = tempCopy();
+  try {
+    for (const [rel, text] of Object.entries(files)) {
+      mkdirSync(join(dir, rel, ".."), { recursive: true });
+      writeFileSync(join(dir, rel), text);
+    }
+    const p = join(dir, ".replication/site.config.json");
+    writeFileSync(p, JSON.stringify({ ...JSON.parse(readFileSync(p, "utf8")), ...config }));
+    return fn(dir);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+test("extra pages default to none", () => {
+  assert.deepEqual(model().config.pages, []);
+});
+
+test("an extra page gets a site path under pages/", () => {
+  withPageFiles({ "analysis/report.html": "<p>x</p>" },
+    { pages: [{ file: "analysis/report.html", title: "Analysis" }] },
+    (dir) => assert.deepEqual(loadProject(dir, OPTS).config.pages,
+      [{ file: "analysis/report.html", title: "Analysis", path: "pages/report.html" }]));
+});
+
+test("extra pages are checked at load", () => {
+  const files = { "report.html": "x", "a/same.html": "x", "b/same.html": "x", "folder/keep.txt": "" };
+  const cases = [
+    [{}, /pages must be a list/],
+    [[null], /pages\[0\] must be an object with file and title/],
+    [[{ file: "report.html" }], /pages\[0\]\.title must be a non-empty string/],
+    [[{ file: "", title: "R" }], /pages\[0\]\.file "" must be a relative path inside the project/],
+    [[{ file: "../report.html", title: "R" }], /must be a relative path inside the project/],
+    [[{ file: "/report.html", title: "R" }], /must be a relative path inside the project/],
+    [[{ file: "C:\\report.html", title: "R" }], /must be a relative path inside the project/],
+    [[{ file: "a\\..\\report.html", title: "R" }], /must be a relative path inside the project/],
+    [[{ file: "missing.html", title: "R" }], /pages\[0\]\.file "missing.html" is not a file/],
+    [[{ file: "folder", title: "R" }], /pages\[0\]\.file "folder" is not a file/],
+    [[{ file: "a/same.html", title: "A" }, { file: "b/same.html", title: "B" }],
+      /pages\[1\]\.file has the same file name as pages\[0\]\.file/],
+  ];
+  for (const [pages, re] of cases) {
+    withPageFiles(files, { pages }, (dir) =>
+      assert.throws(() => loadProject(dir, OPTS), (e) => e.name === "RecordFormatError"
+        && e.message.startsWith(".replication/site.config.json:1: ") && re.test(e.message), JSON.stringify(pages)));
+  }
+});

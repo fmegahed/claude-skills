@@ -55,7 +55,7 @@ test("workflow pins every action to a SHA", () => {
 
 test("workflow gives each job only its permissions", () => {
   const y = read(".github/workflows/replication-site.yml");
-  assert.match(y, /^# replication-materials 1\.0\.0\n/);
+  assert.match(y, /^# replication-materials 1\.1\.0\n/);
   assert.match(y, /^permissions: \{\}$/m);
   assert.match(y, /pages:\s*\n(?:.*\n)*?\s+permissions:\s*\n\s+pages: write\n\s+id-token: write/);
   assert.doesNotMatch(y, /^  artifact:/m);
@@ -89,6 +89,19 @@ test("only the seven known placeholders appear", () => {
       assert.ok([...Object.keys(VALUES), "PLAN_PATH"].includes(m[1]), `${f}: ${m[0]}`);
     }
   }
+});
+
+test("workflow runs on each push to main, so a changed extra page rebuilds the site", () => {
+  const y = read(".github/workflows/replication-site.yml");
+  assert.match(y, /^ {2}push:\n {4}branches: \[main\]\n/m);
+  assert.doesNotMatch(y, /^\s+paths:/m);
+});
+
+test("the version lines of the build script, the pages and the workflow agree", async () => {
+  const { VERSION } = await import("../skills/replication-materials/scripts/lib/html.mjs");
+  const build = readFileSync(join(SKILL, "scripts/build-site.mjs"), "utf8");
+  assert.equal(build.split("\n")[0], `// replication-materials ${VERSION}`);
+  assert.equal(read(".github/workflows/replication-site.yml").split("\n")[0], `# replication-materials ${VERSION}`);
 });
 
 test("workflow keeps workflow_dispatch so Claude Code can start the first run", () => {

@@ -123,3 +123,28 @@ test("server HTML of a document page has no rail class", () => {
   assert.ok(!html.includes("has-rail"));
   assert.ok(!html.includes("doc-rail"));
 });
+
+const withPages = (title = "Analysis") => {
+  const m = model();
+  m.config.pages = [{ file: "analysis/report.html", title, path: "pages/report.html" }];
+  return renderSite(m);
+};
+
+test("extra pages are in the navigation of every page and on Home", () => {
+  const s = withPages();
+  const home = s.get("index.html");
+  assert.equal(home.match(/<a href="pages\/report\.html">Analysis<\/a>/g).length, 2, "nav and Pages list");
+  assert.match(s.get("decisions/index.html"), /<a href="\.\.\/pages\/report\.html">Analysis<\/a>/);
+  assert.match(s.get("docs/plans/2026-10-01-alpha-design/index.html"),
+    /<a href="\.\.\/\.\.\/\.\.\/pages\/report\.html">Analysis<\/a>/);
+});
+
+test("renderSite leaves the extra pages to the build, which copies them", () => {
+  assert.ok(!withPages().has("pages/report.html"));
+});
+
+test("an extra page title is escaped", () => {
+  const home = withPages("<b>x</b>").get("index.html");
+  assert.ok(home.includes("&lt;b&gt;x&lt;/b&gt;"));
+  assert.ok(!home.includes("<b>x</b>"));
+});

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -37,6 +37,31 @@ test("rebuild over a previous site works", () => {
   const out = join(tmp(), "site");
   assert.equal(run("tests/fixtures/full", out).status, 0);
   assert.equal(run("tests/fixtures/full", out).status, 0);
+});
+
+test("rebuild over a site of an older skill version works", () => {
+  const out = tmp();
+  writeFileSync(join(out, "index.html"), '<meta name="generator" content="replication-materials 1.0.0">');
+  assert.equal(run("tests/fixtures/full", out).status, 0);
+});
+
+test("copies extra pages byte for byte and links them", () => {
+  const root = mkdtempSync(join(tmpdir(), "rm-build-root-"));
+  cpSync("tests/fixtures/full", root, { recursive: true });
+  mkdirSync(join(root, "analysis"));
+  const bytes = Buffer.from([0x3c, 0x70, 0x3e, 0xe2, 0x9c, 0x93, 0x00, 0xff]);
+  writeFileSync(join(root, "analysis/report.html"), bytes);
+  const config = join(root, ".replication/site.config.json");
+  writeFileSync(config, JSON.stringify({
+    ...JSON.parse(readFileSync(config, "utf8")),
+    pages: [{ file: "analysis/report.html", title: "Analysis" }],
+  }));
+  const out = join(tmp(), "site");
+  const r = run(root, out);
+  assert.equal(r.status, 0, r.stderr);
+  assert.deepEqual(readFileSync(join(out, "pages/report.html")), bytes);
+  assert.match(readFileSync(join(out, "index.html"), "utf8"), /href="pages\/report\.html"/);
+  assert.match(r.stdout, /and 1 extra page/);
 });
 
 test("an empty --out is refused and leaves the folder alone", () => {

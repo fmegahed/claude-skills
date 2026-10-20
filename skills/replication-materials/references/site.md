@@ -10,6 +10,7 @@
 | Progress | The milestones with their states and plans. The open items and blockers from `roadmap.md`. For each plan with a ledger: the tasks complete out of the tasks in the plan. A plan without a ledger shows `-`. A table of paid calls. |
 | Process | The events of `process.md` by date, and a second view grouped by stage. |
 | Document pages | One page for each markdown file in `plans/`, `findings/`, `probes/` and `calls/`, and for the record README. |
+| Extra pages | The files in `pages` of `.replication/site.config.json`, for example a rendered analysis. Each file is copied as it is to `pages/<file name>`. The navigation and the Home page link to each one. |
 
 The footer of each page says "Built from commit {sha} on {date}." It links to the repository.
 
@@ -51,6 +52,28 @@ The footer of each page says "Built from commit {sha} on {date}." It links to th
   - `project` is a text that is not empty.
   - `repository` is `https://github.com/<owner>/<repo>`, with no `/` at the end.
   - Each `theme` key is a token name. Each `theme` value is `#RRGGBB`.
+  - `pages`, if it is there, follows the rules of the next section.
+
+## Extra pages
+
+- `pages` in `site.config.json` lists files that the website shows as they are. An example is the HTML of a Quarto analysis:
+
+```json
+{
+  "project": "My study",
+  "repository": "https://github.com/owner/my-study",
+  "format_version": 1,
+  "pages": [{ "file": "analysis.html", "title": "Analysis" }]
+}
+```
+
+- `file` is a path from the project root, with `/` between folders. It has no `..`, no `\` and no drive letter.
+- The file must exist. Two files must not have the same file name.
+- `title` is a text that is not empty. It is the link text in the navigation and on the Home page.
+- The build copies each file, byte for byte, to `pages/<file name>`. It copies nothing else.
+- So a file must be self-contained. In Quarto, use `embed-resources: true`. In R Markdown, use `self_contained: true`.
+- The build does not change or check the content of an extra page. Its accessibility and its links are the work of the project.
+- A build script of version 1.0.0 ignores `pages`. `format_version` stays 1.
 
 ## Accessibility: WCAG 2.2 AA
 
@@ -71,8 +94,9 @@ The footer of each page says "Built from commit {sha} on {date}." It links to th
 - Command: `node .replication/build-site.mjs --out <folder>`. `--root` gives the project root. The default is `.`.
 - The build uses Node 22 and no npm packages. It does not need the network.
 - `--out` must be a new folder, an empty folder, or a folder with an earlier site. Else the build stops.
+- A site from any version of the skill counts as an earlier site.
 - For a check, build into a temporary folder outside the repository: `--out "$(mktemp -d)"`.
-- Success prints `Wrote <n> pages to <folder>.` and exits 0.
+- Success prints `Wrote <n> pages to <folder>.` and exits 0. With extra pages, it prints `Wrote <n> pages and <k> extra pages to <folder>.`
 - An error prints `replication-materials: <file>:<line>: <detail>` and exits 1. The file is relative to `replication_materials/`.
 - The build stops when a record table does not have the columns of `record-formats.md`. The message names the file and the line.
 - `git log` is optional. Without git, the build uses the dates in the file names. In CI, `GIT_SHA` gives the commit for the footer.
@@ -90,11 +114,11 @@ The footer of each page says "Built from commit {sha} on {date}." It links to th
 
 The file is `.github/workflows/replication-site.yml`.
 
-- Triggers: a push to `main` that changes `replication_materials/**`, `.replication/**` or the workflow file; and `workflow_dispatch`.
+- Triggers: each push to `main`, and `workflow_dispatch`. There is no path filter, because an extra page can be anywhere in the project.
 - Permissions: none at the top level. The build job has `contents: read`. The deploy job has `pages: write` and `id-token: write`.
 - Concurrency group `pages`. A new run does not cancel a running deploy.
 - Each action is pinned to a full commit SHA, with the tag in a comment.
-- The first line is the version line, for example `# replication-materials 1.0.0`.
+- The first line is the version line, for example `# replication-materials 1.1.0`.
 - The workflow and the links of the website use the branch `main`. Set-up stops when the default branch is not `main`.
 - Check the run of the pushed commit: `gh run list --workflow replication-site.yml --commit "$(git rev-parse HEAD)" --limit 1`.
 - After the first push, if no run has started within 60 seconds, start it: `gh workflow run replication-site.yml --ref main`.
@@ -132,7 +156,8 @@ gh run watch "$(gh run list --workflow replication-site.yml --commit "$(git rev-
   - `.github/workflows/replication-site.yml`.
   - The block in `CLAUDE.md`, from `<!-- replication-materials:start -->` to `<!-- replication-materials:end -->`.
 - The records belong to the project. `.replication/site.config.json` also belongs to the project.
-- The build script and the workflow have a version line: `// replication-materials 1.0.0` and `# replication-materials 1.0.0`.
+- The build script and the workflow have a version line: `// replication-materials 1.1.0` and `# replication-materials 1.1.0`.
+- Version 1.1.0 adds extra pages, and its workflow runs on each push to `main`.
 - `site.config.json` has `format_version`. The build reads format version 1.
 - When `format_version` is newer than the build script, the build stops. The message says "Run the update procedure of the replication-materials skill."
 - Set-up never replaces a file that exists. Only the update procedure replaces skill-owned files.

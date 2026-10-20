@@ -20,7 +20,7 @@ replication_materials/
   environment/       session information, lock files, versions
 .replication/
   build-site.mjs     the build script (a copy from the skill), with lib/
-  site.config.json   project name, repository URL, format_version, theme
+  site.config.json   project name, repository URL, format_version, theme, pages
 .github/workflows/replication-site.yml
 ```
 
