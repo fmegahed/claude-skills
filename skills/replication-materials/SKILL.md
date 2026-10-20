@@ -88,6 +88,10 @@ The `Source` and `Session` columns hold the session ID.
      `grep -nE '\[[^]]+\]([^(]|$)' replication_materials/README.md replication_materials/project/decisions.md`
 8. Run the build check. Commit the set-up files on `main` and push.
 9. Watch the first workflow run. When it passes, report the website URL (commands in `references/site.md`).
+   - After the first push, check for a `Replication site` run: `gh run list --workflow replication-site.yml --limit 1`.
+   - If no run has started within 60 seconds, start it: `gh workflow run replication-site.yml --ref main`.
+   - The workflow template has `workflow_dispatch`, so this command works.
+   - Then watch the new run.
 
 ## During the work
 

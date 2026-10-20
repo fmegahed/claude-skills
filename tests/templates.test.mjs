@@ -84,3 +84,7 @@ test("only the seven known placeholders appear", () => {
     }
   }
 });
+
+test("workflow keeps workflow_dispatch so Claude Code can start the first run", () => {
+  assert.match(read(".github/workflows/replication-site.yml"), /^\s{2}workflow_dispatch:/m);
+});
