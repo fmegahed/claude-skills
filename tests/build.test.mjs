@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -37,4 +37,14 @@ test("rebuild over a previous site works", () => {
   const out = join(tmp(), "site");
   assert.equal(run("tests/fixtures/full", out).status, 0);
   assert.equal(run("tests/fixtures/full", out).status, 0);
+});
+
+test("an empty --out is refused and leaves the folder alone", () => {
+  const cwd = tmp();
+  writeFileSync(join(cwd, "index.html"), "mine");
+  const r = spawnSync("node", [join(process.cwd(), SCRIPT), "--root", join(process.cwd(), "tests/fixtures/full"), "--out", ""],
+    { encoding: "utf8", cwd });
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /replication-materials: --out needs a folder name\./);
+  assert.equal(readFileSync(join(cwd, "index.html"), "utf8"), "mine");
 });

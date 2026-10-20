@@ -3,7 +3,8 @@ import { readFileSync } from "node:fs";
 import { escapeHtml, inline, rel, pageShell, CDN } from "./html.mjs";
 import { STAGES } from "./project.mjs";
 
-const CLIENT_JS = readFileSync(new URL("./client.js", import.meta.url), "utf8");
+const read = (f) => readFileSync(new URL(f, import.meta.url), "utf8");
+const CLIENT_JS = read("./linkpath.js") + read("./client.js");
 
 const PAGE_CSS = `<style>
 .lead { font-size: 1.15rem; max-width: 48rem; }
@@ -207,8 +208,10 @@ export function renderDocument(model, doc) {
 ${clientScript()}`;
   const body = `<h1>${escapeHtml(doc.title)}</h1>
 <p class="note">${escapeHtml(doc.path)}${doc.status ? ` · Status: ${escapeHtml(doc.status)}` : ""}</p>
+<div class="doc-layout">
 <div id="doc-content">
 <pre id="doc-fallback" tabindex="0">${escapeHtml(doc.text)}</pre>
+</div>
 </div>`;
   return shell(model, path, doc.title, body, { head, scripts });
 }

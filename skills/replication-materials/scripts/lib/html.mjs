@@ -103,10 +103,17 @@ main { max-width: 72rem; margin: 0 auto; padding: 1.5rem 16px 3rem; }
 table { border-collapse: collapse; width: 100%; background: var(--surface); }
 th, td { border: 1px solid var(--rule); padding: 0.5rem 0.75rem; text-align: left; vertical-align: top; }
 th { background: var(--tan); }
+.doc-rail { margin: 0 0 1.5rem; padding: 0.5rem 1rem; background: var(--surface); border: 1px solid var(--rule); }
+.doc-rail::before { content: "Contents"; display: block; font: 700 1rem var(--serif); }
+.doc-rail ul { list-style: none; margin: 0.25rem 0 0; padding: 0; }
+.doc-rail a { display: flex; align-items: center; min-height: 24px; padding: 0.125rem 0; }
 img, svg { max-width: 100%; height: auto; }
 @media (min-width: 900px) {
   .site-header { position: sticky; top: 0; z-index: 10; }
   html { scroll-padding-top: 8rem; }
+  .doc-layout { display: grid; grid-template-columns: 15rem minmax(0, 1fr); gap: 2rem; align-items: start; }
+  .doc-layout .doc-rail { grid-column: 1; grid-row: 1; position: sticky; top: 8rem; margin: 0; }
+  .doc-layout #doc-content { grid-column: 2; grid-row: 1; }
 }
 `;
 }

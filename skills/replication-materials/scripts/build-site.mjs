@@ -12,7 +12,10 @@ function parseArgs(argv) {
   const opts = { root: ".", out: "_site" };
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === "--root" && argv[i + 1] !== undefined) opts.root = argv[++i];
-    else if (argv[i] === "--out" && argv[i + 1] !== undefined) opts.out = argv[++i];
+    else if (argv[i] === "--out" && argv[i + 1] !== undefined) {
+      opts.out = argv[++i];
+      if (opts.out.trim() === "") throw new Error("--out needs a folder name.");
+    }
     else throw new Error(`unknown or incomplete argument "${argv[i]}". Use --root <dir> and --out <dir>.`);
   }
   return opts;
@@ -38,10 +41,12 @@ function outIsUsable(out) {
 
 export async function main(argv) {
   try {
-    const { root, out } = parseArgs(argv);
+    const args = parseArgs(argv);
+    const { root } = args;
+    const out = resolve(args.out);
     const model = loadProject(root, { gitSha: gitSha(root) });
     if (!outIsUsable(out)) {
-      process.stderr.write(`replication-materials: ${out} is not empty and is not a previous site.\n`);
+      process.stderr.write(`replication-materials: ${args.out} is not empty and is not a previous site.\n`);
       return 1;
     }
     const site = renderSite(model);
@@ -52,7 +57,7 @@ export async function main(argv) {
       mkdirSync(dirname(target), { recursive: true });
       writeFileSync(target, html);
     }
-    process.stdout.write(`Wrote ${site.size} pages to ${out}.\n`);
+    process.stdout.write(`Wrote ${site.size} pages to ${args.out}.\n`);
     return 0;
   } catch (e) {
     process.stderr.write(`replication-materials: ${e.message}\n`);

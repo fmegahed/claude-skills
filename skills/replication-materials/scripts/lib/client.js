@@ -66,38 +66,31 @@
       h.parentNode.replaceChild(h2, h);
     });
 
-    var resolve = function (href) {
-      var parts = (ctx.folder ? ctx.folder + "/" + href : href).split("/");
-      var out = [];
-      parts.forEach(function (p) {
-        if (p === "..") out.pop();
-        else if (p !== "." && p !== "") out.push(p);
-      });
-      return out.join("/");
-    };
     Array.prototype.forEach.call(holder.querySelectorAll("a[href]"), function (a) {
-      var href = a.getAttribute("href");
-      if (/^([a-z][a-z0-9+.-]*:|\/|#)/i.test(href)) return;
-      var hashAt = href.indexOf("#");
-      var file = hashAt === -1 ? href : href.slice(0, hashAt);
-      var hash = hashAt === -1 ? "" : href.slice(hashAt);
-      var query = file.indexOf("?");
-      if (query !== -1) file = file.slice(0, query);
-      if (!file) return;
-      var path = resolve(file);
-      if (Object.prototype.hasOwnProperty.call(ctx.pages, path)) a.setAttribute("href", ctx.pages[path] + hash);
-      else a.setAttribute("href", ctx.blobBase + path.split("/").map(encodeURIComponent).join("/") + hash);
+      var target = resolveLink(ctx, a.getAttribute("href"));
+      if (target !== null) a.setAttribute("href", target);
     });
 
-    Array.prototype.forEach.call(holder.querySelectorAll("table"), function (t) {
+    // Each table gets a focusable, distinctly labelled region and column scopes.
+    var heading = "";
+    var tableNo = 0;
+    var used = {};
+    Array.prototype.slice.call(holder.querySelectorAll("h1,h2,h3,h4,h5,h6,table")).forEach(function (el) {
+      if (el.tagName !== "TABLE") { heading = el.textContent.trim(); return; }
+      tableNo += 1;
+      var label = heading ? heading + " table" : "Table " + tableNo;
+      if (used[label]) label = label + " " + tableNo;
+      used[label] = true;
       var wrap = document.createElement("div");
-      var cap = t.querySelector("caption");
       wrap.className = "table-wrap";
       wrap.tabIndex = 0;
       wrap.setAttribute("role", "region");
-      wrap.setAttribute("aria-label", cap ? cap.textContent : "Table");
-      t.parentNode.insertBefore(wrap, t);
-      wrap.appendChild(t);
+      wrap.setAttribute("aria-label", label);
+      el.parentNode.insertBefore(wrap, el);
+      wrap.appendChild(el);
+      Array.prototype.forEach.call(el.querySelectorAll("thead th"), function (th) {
+        th.setAttribute("scope", "col");
+      });
     });
     Array.prototype.forEach.call(holder.querySelectorAll("pre"), function (p) {
       p.tabIndex = 0;
@@ -105,5 +98,31 @@
 
     if (fallback) fallback.remove();
     target.appendChild(holder);
+
+    // Contents rail from the h2 headings, when there are any.
+    var heads = holder.querySelectorAll("h2");
+    if (heads.length) {
+      var rail = document.createElement("nav");
+      var list = document.createElement("ul");
+      var taken = {};
+      rail.className = "doc-rail";
+      rail.setAttribute("aria-label", "Contents");
+      Array.prototype.forEach.call(heads, function (h, i) {
+        if (!h.id) {
+          var slug = h.textContent.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "section";
+          if (taken[slug] || document.getElementById(slug)) slug = slug + "-" + (i + 1);
+          h.id = slug;
+        }
+        taken[h.id] = true;
+        var li = document.createElement("li");
+        var a = document.createElement("a");
+        a.href = "#" + h.id;
+        a.textContent = h.textContent;
+        li.appendChild(a);
+        list.appendChild(li);
+      });
+      rail.appendChild(list);
+      target.parentNode.insertBefore(rail, target);
+    }
   }
 })();

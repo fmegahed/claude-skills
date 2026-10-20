@@ -91,3 +91,12 @@ test("empty record shows empty states", () => {
   assert.ok(s.get("progress/index.html").includes("No open items."));
   assert.ok(s.get("progress/index.html").includes("No paid calls yet."));
 });
+
+test("markdown JSON cannot close the script tag", () => {
+  const m = model();
+  const doc = { ...m.documents[0], text: "# T\n\n</script><script>alert(1)</script>\n" };
+  const key = `docs/${doc.path.replace(/\.md$/, "")}/index.html`;
+  const html = renderSite({ ...m, documents: [doc] }).get(key);
+  assert.ok(html.includes("\u003c/script"));
+  assert.ok(!html.includes("</script><script>alert"));
+});
