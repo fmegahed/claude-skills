@@ -1,0 +1,29 @@
+{
+  "source": "https://miamioh.edu/brand/style/",
+  "read_on": "2026-10-19",
+  "colors": {
+    "miami_red": { "name": "Miami Red", "hex": "#C41230" },
+    "white": { "name": "White", "hex": "#FFFFFF" },
+    "accent_red": { "name": "Accent Red", "hex": "#AD102A" },
+    "light_tan": { "name": "Light Tan", "hex": "#EDECE2" },
+    "medium_tan": { "name": "Medium Tan", "hex": "#CCC9B8" },
+    "dark_tan": { "name": "Dark Tan", "hex": "#70685C" },
+    "black": { "name": "Black", "hex": "#000000" },
+    "medium_gray": { "name": "Medium Gray", "hex": "#666666" },
+    "warm_white": { "name": "Warm White", "hex": "#FAF9F7" },
+    "corn_yellow": { "name": "Corn Yellow", "hex": "#FDE778" },
+    "slate_blue": { "name": "Slate Blue", "hex": "#3E5468" }
+  },
+  "approved_text_on": {
+    "white": ["black", "miami_red", "accent_red", "dark_tan", "slate_blue", "medium_gray"],
+    "warm_white": ["black", "miami_red", "accent_red", "dark_tan", "slate_blue", "medium_gray"],
+    "light_tan": ["black", "miami_red", "accent_red", "dark_tan", "slate_blue", "medium_gray"],
+    "miami_red": ["white", "warm_white", "light_tan"],
+    "accent_red": ["white", "warm_white", "light_tan", "corn_yellow"],
+    "medium_tan": ["black"],
+    "dark_tan": ["white", "warm_white", "light_tan"],
+    "slate_blue": ["white", "warm_white", "light_tan", "medium_tan", "corn_yellow"],
+    "medium_gray": ["white", "warm_white", "light_tan"],
+    "corn_yellow": ["black", "accent_red", "slate_blue"]
+  }
+}
