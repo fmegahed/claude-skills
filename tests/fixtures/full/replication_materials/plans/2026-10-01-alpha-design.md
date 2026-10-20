@@ -5,7 +5,11 @@
 | Status | Approved |
 | Owner | fmm |
 
+## Method
+
 The estimate is $\hat{p}$, the share of correct answers.
+
+## Results
 
 | A | B | C | D | E | F | G | H | I | J | K | L |
 |---|---|---|---|---|---|---|---|---|---|---|---|
