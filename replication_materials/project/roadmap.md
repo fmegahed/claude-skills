@@ -23,3 +23,5 @@
 | O4 | Add a plugin marketplace file (`.claude-plugin/marketplace.json`) so that other researchers can install each skill with `/plugin`. | - | claude |
 | O5 | Check the use rules for the Miami logo and the Ohio BWC logo in a public repository. Until then, the logos stay out of git. | - | fmm |
 | O6 | Generalize `narrated-demo-video` for a wider audience (D17). Start from D21: ElevenLabs when the user gives a key, else Microsoft neural voices. | M2 | claude |
+| O7 | Read rulings written as `Final: parked — <finding> — Ruling: <decision>` (and `Task <n>: parked — …`), the form superpowers uses when a review loop reaches its cap. The anchored rule of Ruling 15 drops them (8 lines in the EXPERTA ledgers). Add the form and test it on those lines. | - | claude |
+| O8 | Choose a licence for the repository. Without a LICENSE file, other researchers cannot legally reuse the skills. | - | fmm |
