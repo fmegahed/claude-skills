@@ -84,7 +84,8 @@ The `Source` and `Session` columns hold the session ID.
    - The paragraph states the question of the project and what the record holds.
    - In D1, set Proposed by to the ID of the one who first asked for the record.
    - In the Evidence of D1, replace the `[...]` marker with the words of that request.
-   - Run `grep -rnE '\[[^]]+\]([^(]|$)' replication_materials`. No `[...]` marker may remain.
+   - No `[...]` marker may remain in these two files. Check them with this command. It must print nothing:
+     `grep -nE '\[[^]]+\]([^(]|$)' replication_materials/README.md replication_materials/project/decisions.md`
 8. Run the build check. Commit the set-up files on `main` and push.
 9. Watch the first workflow run. When it passes, report the website URL (commands in `references/site.md`).
 
@@ -106,10 +107,12 @@ The `Source` and `Session` columns hold the session ID.
    - Log each call that Claude Code makes in `calls/<service>-calls.csv`. Stop at the limits of the row.
    - Never write a key, a token or an authorization header in any file.
 6. Run the build check after each edit of a record.
-7. Commit record changes with no code. Commit them to `main` and push without asking. This is the record rule.
-   - Push in small groups, for example at each change of stage.
+7. Commit record changes with no code. This is the record rule:
+   - On `main`, commit and push them without asking. Push in small groups, for example at each change of stage.
    - If the code work is in a git worktree, commit the records in the main checkout, on `main`.
    - If the code work is on a branch in the main checkout, commit the records on that branch.
+   - On that branch, do not push without asking. The records reach `main` at the merge.
+   - After a push to `main`, check that the workflow run passed: `gh run list --workflow replication-site.yml --limit 1`.
 
 ## End of a milestone
 
@@ -136,7 +139,7 @@ The `Source` and `Session` columns hold the session ID.
    - Then set the first `planned` milestone, if one exists, to `next`.
 6. If a deferred item in the ledger blocks a later milestone, add it to `## Open items`.
 7. Add a row to `process.md` for the end of the milestone. Use the stage of the work that ended.
-8. Run the build check. Commit and push the record (the record rule). Check that the workflow run passed.
+8. Run the build check. Commit the record by the record rule (During the work, step 7).
 
 ## Correction
 
@@ -145,7 +148,7 @@ The `Source` and `Session` columns hold the session ID.
    - Field: `Decision`, `Proposed by`, `Decided by`, `How` or `Evidence`.
    - Checked by: the ID of the person who checked the record. Claude Code can write the row for that person.
 2. Do not change or delete the original row or the ledger line.
-3. Run the build check. Commit and push the record (the record rule).
+3. Run the build check. Commit the record by the record rule (During the work, step 7).
 
 ## Update
 

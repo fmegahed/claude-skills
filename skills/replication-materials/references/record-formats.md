@@ -269,4 +269,10 @@ Research notes and findings mark the source of each statement:
 
 `{{PLAN_PATH}}` is only in `ledger-header.md`. The end-of-milestone procedure fills it.
 
-After set-up, no `[...]` marker may remain in the record. Find them with `grep -rnE '\[[^]]+\]([^(]|$)' replication_materials`.
+Set-up fills the `[...]` markers of two files: `README.md` and `project/decisions.md`. No `[...]` marker may remain in these two files. Check them with this command. It must print nothing:
+
+```bash
+grep -nE '\[[^]]+\]([^(]|$)' replication_materials/README.md replication_materials/project/decisions.md
+```
+
+The check does not cover `plans/`. Plans hold checkboxes such as `- [ ]`, and the record keeps them as they are.
