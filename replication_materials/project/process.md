@@ -24,3 +24,7 @@
 | 2026-10-20T02:21Z | plan | Fadel M. Megahed | Chose to build on main. | - | b36ad167 |
 | 2026-10-20T02:23Z | build | subagent (Sonnet 5.5) | Started Task 1 of the plan, the repository skeleton. | - | b36ad167 |
 | 2026-10-20T03:47Z | build | subagent (Sonnet 5.5) | Published the repository and the records site at https://fmegahed.github.io/claude-skills/. | project/ | b36ad167 |
+| 2026-10-20T03:52Z | evaluate | Claude Code (Opus 5.5) with subagent (Sonnet 5.5) | Acceptance A: set-up in a new project with no remote. The agent stopped, made no file and asked for a GitHub remote with Actions. | - | b36ad167 |
+| 2026-10-20T03:55Z | evaluate | Claude Code (Opus 5.5) with subagent (Sonnet 5.5) | Acceptance B: set-up with the test remote `fmegahed/replication-site-spike`. The empty folder became a live site. Pages was already on (409 handled). The push started no site run, so the skill step started run 39366818472, which passed. | - | b36ad167 |
+| 2026-10-20T03:56Z | evaluate | Claude Code (Opus 5.5) with subagent (Sonnet 5.5) | Living-document check: one new decision D2 was pushed in the test project. The push started run 39366922525 by itself, which passed. The live Decisions page showed D2. | - | b36ad167 |
+| 2026-10-20T04:00Z | evaluate | Claude Code (Opus 5.5) | Closed milestone M1. Copied the ledger. No milestone is active in this repository. | plans/2026-10-19-replication-skill-ledger.md, project/roadmap.md | b36ad167 |
