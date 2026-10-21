@@ -123,6 +123,7 @@ const NAV = [
   ["Home", "index.html"],
   ["Records", "records/index.html"],
   ["Decisions", "decisions/index.html"],
+  ["Contributions", "contributions/index.html"],
   ["Timeline", "timeline/index.html"],
   ["Releases", "releases/index.html", (m) => m.recordFiles?.releases],
   ["Results", "results/index.html", (m) => m.recordFiles?.results],

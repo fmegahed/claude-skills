@@ -76,7 +76,7 @@ test("events sorted by time", () => {
 
 test("documents in date order with kinds", () => {
   const docs = model().documents;
-  assert.deepEqual(docs.map((d) => d.kind), ["design", "plan", "probes", "findings", "ledger", "readme", "calls"]);
+  assert.deepEqual(docs.map((d) => d.kind), ["design", "plan", "probes", "findings", "ledger", "readme", "calls", "contributions"]);
   assert.equal(docs[0].title, "Alpha design");
   assert.equal(docs[0].status, "Approved");
   assert.equal(docs[0].path, "plans/2026-10-01-alpha-design.md");

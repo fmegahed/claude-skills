@@ -188,7 +188,7 @@ test("results page has filters, status and source links", () => {
 
 test("nav has Releases and Results after Decisions when the files exist", () => {
   const labels = navLabels(site().get("index.html"));
-  assert.deepEqual(labels, ["Home", "Records", "Decisions", "Timeline", "Releases", "Results", "Progress", "Process", "Repository"]);
+  assert.deepEqual(labels, ["Home", "Records", "Decisions", "Contributions", "Timeline", "Releases", "Results", "Progress", "Process", "Repository"]);
 });
 
 test("a record without the two files builds with no pages and no nav items", () => {
@@ -198,7 +198,7 @@ test("a record without the two files builds with no pages and no nav items", () 
     for (const f of ["releases", "results"]) rmSync(join(dir, "replication_materials/project", `${f}.md`));
     const s = renderSite(loadProject(dir, OPTS));
     assert.ok(!s.has("releases/index.html") && !s.has("results/index.html"));
-    assert.deepEqual(navLabels(s.get("index.html")), ["Home", "Records", "Decisions", "Timeline", "Progress", "Process", "Repository"]);
+    assert.deepEqual(navLabels(s.get("index.html")), ["Home", "Records", "Decisions", "Contributions", "Timeline", "Progress", "Process", "Repository"]);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
@@ -268,4 +268,121 @@ test("timeline empty state and escaping", () => {
   const m = model();
   m.events[0].what = "<img src=x>";
   assert.ok(!renderSite(m).get("timeline/index.html").includes("<img src=x>"));
+});
+
+const section = (html, h2) => html.match(new RegExp(`<h2>${h2}</h2>([^]*?)(?=<h2>|$)`))?.[1] ?? "";
+
+test("contributions page has the grid of proposers and deciders without rulings", () => {
+  const html = site().get("contributions/index.html");
+  const grid = html.match(/<table>\s*<caption>Who proposed and who decided<\/caption>[^]*?<\/table>/)[0];
+  assert.match(grid, /<th scope="col">Fiona Miller<\/th>/);
+  assert.match(grid, /<th scope="row">Claude Code<\/th>/);
+  assert.ok(!grid.includes("R-2026"));
+  assert.match(html, /2 rulings by Claude Code are not in the grid/);
+});
+
+test("contributions page lists what the researchers proposed with evidence", () => {
+  const m = model();
+  m.decisions[2].evidence = "findings/2026-10-04-alpha-findings.md";
+  const part = section(renderSite(m).get("contributions/index.html"), "Proposed by the researchers");
+  assert.match(part, /D1/);
+  assert.match(part, /D3/);
+  assert.ok(part.includes("2026-10-03 21:05"));
+  assert.ok(!part.includes("D2"));
+  assert.ok(part.includes("findings/2026-10-04-alpha-findings.md"));
+});
+
+test("contributions page lists Claude Code proposals that a researcher decided", () => {
+  const m = model();
+  assert.match(section(renderSite(m).get("contributions/index.html"), "Proposed by Claude Code and decided by a researcher"), /No decisions/);
+  m.decisions[1].decidedBy = ["fmm"];
+  const part = section(renderSite(m).get("contributions/index.html"), "Proposed by Claude Code and decided by a researcher");
+  assert.match(part, /D2/);
+});
+
+test("contributions page shows replaced pairs, corrections and checks", () => {
+  const html = site().get("contributions/index.html");
+  assert.ok(html.includes("D1 \u2192 replaced by D3"));
+  assert.ok(html.includes("D2 \u2192 replaced by D3"));
+  const part = section(html, "Corrections and checks by the researchers");
+  assert.match(part, /Correction/);
+  assert.match(part, /Decided by/);
+  assert.match(part, /Checked against the call log\./);
+  assert.match(part, /Fiona Miller/);
+});
+
+test("contributions page links the account and counts unchecked decisions", () => {
+  const html = site().get("contributions/index.html");
+  assert.ok(html.includes("Draft"));
+  assert.ok(html.includes("Contributions of the researchers"));
+  assert.ok(html.includes('href="../docs/project/contributions/index.html"'));
+  assert.equal((html.match(/not checked by a person/g) ?? []).length, 2);
+  assert.match(html, /1 decision is not checked by a person/);
+});
+
+test("contributions page without an account says so", () => {
+  const dir = mkdtempSync(join(tmpdir(), "rm-nocontrib-"));
+  try {
+    cpSync("tests/fixtures/full", dir, { recursive: true });
+    rmSync(join(dir, "replication_materials/project/contributions.md"));
+    const s = renderSite(loadProject(dir, OPTS));
+    assert.ok(s.get("contributions/index.html").includes("The researchers have not written their account yet."));
+    assert.ok(!s.has("docs/project/contributions/index.html"));
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+  assert.ok(site().has("docs/project/contributions/index.html"));
+});
+
+test("contributions page empty state and escaping", () => {
+  const m = { ...model(), decisions: [], topics: [] };
+  assert.ok(renderSite(m).get("contributions/index.html").includes("No decisions yet."));
+  const m2 = model();
+  m2.decisions[0].text = "<b>x</b>";
+  m2.decisions[0].corrected = { by: "<i>y</i>", date: "2026-10-06", notes: ["<u>z</u>"], fields: ["<s>f</s>"] };
+  const h2 = renderSite(m2).get("contributions/index.html");
+  assert.ok(!h2.includes("<b>x</b>") && !h2.includes("<i>y</i>") && !h2.includes("<u>z</u>") && !h2.includes("<s>f</s>"));
+});
+
+test("decisions page shows the time, the topic filter and the detail notes", () => {
+  const html = site().get("decisions/index.html");
+  assert.ok(html.includes("2026-10-03 21:05"));
+  assert.match(html, /data-filter-key="topic" data-filter-value="prompts"/);
+  assert.match(html, /data-topic="prompts"/);
+  assert.match(html, /data-topic=""/);
+  assert.ok(!html.includes('data-filter-value="No topic"'));
+  assert.ok(html.includes("Impact: Shorter prompts cost less."));
+  assert.ok(html.includes("Replaces D1, D2."));
+  assert.ok(html.includes('<span class="note">Not checked by a person.</span>'));
+});
+
+test("decisions page has the topic grid and the time bins", () => {
+  const html = site().get("decisions/index.html");
+  const grid = html.match(/<caption>Who decided, by topic<\/caption>[^]*?<\/table>/)[0];
+  assert.match(grid, /prompts/);
+  assert.match(grid, /No topic/);
+  assert.match(grid, /Total/);
+  const over = html.match(/<caption>Decisions over time<\/caption>[^]*?<\/table>/)[0];
+  assert.match(over, /2026-10-01/);
+  assert.match(over, /2026-10-03/);
+  assert.match(over, /aria-hidden="true"/);
+});
+
+test("decisions over time uses hours when all decisions share one date", () => {
+  const m = model();
+  m.decisions = m.decisions.slice(0, 3).map((d, i) => ({ ...d, date: "2026-10-03", time: i === 2 ? "21:05" : null }));
+  const over = renderSite(m).get("decisions/index.html").match(/<caption>Decisions over time<\/caption>[^]*?<\/table>/)[0];
+  assert.match(over, /21:00/);
+  assert.match(over, /No time/);
+  assert.ok(over.lastIndexOf("No time") > over.indexOf("21:00"));
+});
+
+test("decisions page without topics has no topic filter or grid, and escapes impact", () => {
+  const m = model();
+  m.topics = [];
+  m.decisions.forEach((d) => { d.topic = null; });
+  m.decisions[2].impact = "<script>alert(2)</script>";
+  const html = renderSite(m).get("decisions/index.html");
+  assert.ok(!html.includes('data-filter-key="topic"'));
+  assert.ok(!html.includes("Who decided, by topic"));
+  assert.ok(html.includes("Impact: &lt;script&gt;alert(2)&lt;/script&gt;"));
+  assert.ok(!html.includes("<script>alert(2)"));
 });

@@ -128,29 +128,145 @@ export function renderRecords(model) {
   return shell(model, path, "Records", `<h1>Records</h1>\n${content}`, { scripts: model.documents.length ? clientScript() : "" });
 }
 
+const PERSON_NONE = new Set(["claude", "subagent", "unknown"]);
+const isPerson = (id) => !PERSON_NONE.has(id);
+const isPersonDecision = (d) => d.decidedBy.some(isPerson);
+const pct = (n) => `${Math.round(n * 100) / 100}%`;
+const when = (d) => (d.time ? `${d.date} ${d.time}` : d.date);
+const note = (text) => `<br><span class="note">${text}</span>`;
+
+// A table whose first column holds row headers. rows: [{ label, cells: [value] }].
+function grid(caption, corner, cols, rows) {
+  const head = [corner, ...cols].map((h) => `<th scope="col">${escapeHtml(h)}</th>`).join("");
+  const body = rows.map((r) => `<tr><th scope="row">${escapeHtml(r.label)}</th>${r.cells.map((c) => `<td>${escapeHtml(String(c))}</td>`).join("")}</tr>`);
+  return `<div class="table-wrap" tabindex="0" role="region" aria-label="${escapeHtml(caption)}">
+<table>
+<caption>${escapeHtml(caption)}</caption>
+<thead><tr>${head}</tr></thead>
+<tbody>
+${body.join("\n")}
+</tbody>
+</table>
+</div>`;
+}
+
+const bar = (n, max) => `<div class="bar-track" aria-hidden="true"><div class="bar" aria-hidden="true" style="left:0;width:${pct((n / max) * 100)}"></div></div>`;
+
+// Bins for "Decisions over time": days, or hours when every decision has one date.
+function timeBins(decisions) {
+  const dates = new Set(decisions.map((d) => d.date));
+  const bins = new Map();
+  const add = (key) => bins.set(key, (bins.get(key) ?? 0) + 1);
+  const byKey = (a, b) => (a[0] < b[0] ? -1 : 1);
+  if (dates.size >= 2 || !decisions.some((d) => d.time)) {
+    for (const d of decisions) add(d.date);
+    return [...bins].sort(byKey);
+  }
+  for (const d of decisions) if (d.time) add(`${d.time.slice(0, 2)}:00`);
+  const sorted = [...bins].sort(byKey);
+  const none = decisions.filter((d) => !d.time).length;
+  return none ? [...sorted, ["No time", none]] : sorted;
+}
+
+const topicList = (model) => [...new Set([...model.topics.map((t) => t.topic), ...model.decisions.map((d) => d.topic).filter(Boolean)])];
+
 export function renderDecisions(model) {
   const path = "decisions/index.html";
   const deciders = [...new Set(model.decisions.flatMap((d) => d.decidedBy))];
   const hows = [...new Set(model.decisions.map((d) => d.how))];
+  const topics = topicList(model);
   const rows = model.decisions.map((d) => {
     const fix = d.corrected
-      ? `<br><span class="note">Corrected by ${escapeHtml(d.corrected.by)}, ${escapeHtml(d.corrected.date)}.${
-        d.corrected.notes.length ? ` ${escapeHtml(d.corrected.notes.join(" "))}` : ""}</span>`
+      ? note(`Corrected by ${escapeHtml(d.corrected.by)}, ${escapeHtml(d.corrected.date)}.${
+        d.corrected.notes.length ? ` ${escapeHtml(d.corrected.notes.join(" "))}` : ""}`)
       : "";
+    const detail = (d.impact ? note(`Impact: ${escapeHtml(d.impact)}`) : "")
+      + ((d.replaces ?? []).length ? note(`Replaces ${escapeHtml(d.replaces.join(", "))}.`) : "")
+      + (d.checked ? "" : note("Not checked by a person."));
     return tr([
-      escapeHtml(d.id), escapeHtml(d.date), inline(d.text) + fix,
+      escapeHtml(d.id), escapeHtml(when(d)), inline(d.text) + fix + detail,
       escapeHtml(names(model, d.proposedBy)), escapeHtml(names(model, d.decidedBy)),
       escapeHtml(d.how), recordRef(model, path, d.evidence), recordRef(model, path, d.source),
-    ], ` data-row data-decided="${escapeHtml(d.decidedBy.join(" "))}" data-how="${escapeHtml(d.how)}"`);
+    ], ` data-row data-decided="${escapeHtml(d.decidedBy.join(" "))}" data-how="${escapeHtml(d.how)}" data-topic="${escapeHtml(d.topic ?? "")}"`);
   });
-  const content = model.decisions.length
-    ? filterBar([
-      { key: "decided", label: "Decided by", options: deciders.map((id) => ({ value: id, label: personName(model, id) })) },
-      { key: "how", label: "How", options: hows.map((h) => ({ value: h, label: h })) },
-    ], model.decisions.length)
-      + table("All decisions", ["ID", "Date", "Decision", "Proposed by", "Decided by", "How", "Evidence", "Source"], rows)
-    : "<p>No decisions yet.</p>";
+  const groups = [
+    { key: "decided", label: "Decided by", options: deciders.map((id) => ({ value: id, label: personName(model, id) })) },
+    { key: "how", label: "How", options: hows.map((h) => ({ value: h, label: h })) },
+  ];
+  if (topics.length) groups.push({ key: "topic", label: "Topic", options: topics.map((t) => ({ value: t, label: t })) });
+
+  let content = "<p>No decisions yet.</p>";
+  if (model.decisions.length) {
+    content = filterBar(groups, model.decisions.length)
+      + table("All decisions", ["ID", "Date", "Decision", "Proposed by", "Decided by", "How", "Evidence", "Source"], rows);
+    const own = model.decisions.filter((d) => d.how !== "ruling");
+    if (topics.length && own.length) {
+      const cols = [...new Set(own.flatMap((d) => d.decidedBy))];
+      const keys = [...topics, ...(own.some((d) => !d.topic) ? [null] : [])];
+      const trows = keys.map((t) => {
+        const set = own.filter((d) => (d.topic ?? null) === t);
+        return { label: t ?? "No topic", cells: [...cols.map((c) => set.filter((d) => d.decidedBy.includes(c)).length), set.length] };
+      });
+      content += `\n<h2>Who decided, by topic</h2>\n${grid("Who decided, by topic", "Topic", [...cols.map((c) => personName(model, c)), "Total"], trows)}`;
+    }
+    if (own.length) {
+      const bins = timeBins(own);
+      const max = Math.max(...bins.map((b) => b[1]));
+      content += `\n<h2>Decisions over time</h2>\n${table("Decisions over time", ["Period", "Decisions", "Chart"],
+        bins.map(([label, n]) => tr([escapeHtml(label), String(n), bar(n, max)])))}`;
+    }
+  }
   return shell(model, path, "Decisions", `<h1>Decisions</h1>\n${content}`, { scripts: model.decisions.length ? clientScript() : "" });
+}
+
+export function renderContributions(model) {
+  const path = "contributions/index.html";
+  const all = model.decisions;
+  const own = all.filter((d) => d.how !== "ruling");
+  const rulings = all.length - own.length;
+  const unchecked = all.filter((d) => !d.checked).length;
+  const account = model.documents.find((d) => d.path === "project/contributions.md");
+  let body = "<h1>Contributions</h1>\n<h2>Account of the researchers</h2>\n";
+  body += account
+    ? `<p><a href="${escapeHtml(rel(path, docPath(account.path)))}">${escapeHtml(account.title)}</a>${account.status ? ` · Status: ${escapeHtml(account.status)}` : ""}</p>`
+    : "<p>The researchers have not written their account yet.</p>";
+  if (!all.length) return shell(model, path, "Contributions", `${body}\n<p>No decisions yet.</p>`);
+
+  body += `\n<p>${unchecked === 0 ? "A person checked every decision."
+    : `${unchecked} ${unchecked === 1 ? "decision is" : "decisions are"} not checked by a person. The Decisions page lists them.`}</p>\n`;
+
+  const side = (key) => [...new Set(own.flatMap((d) => d[key]))];
+  const rowIds = side("proposedBy");
+  const colIds = side("decidedBy");
+  const cell = (r, c) => own.filter((d) => d.proposedBy.includes(r) && d.decidedBy.includes(c)).length;
+  body += `<h2>Who proposed and who decided</h2>
+${own.length ? grid("Who proposed and who decided", "Proposed by (rows), decided by (columns)", colIds.map((c) => personName(model, c)),
+    rowIds.map((r) => ({ label: personName(model, r), cells: colIds.map((c) => cell(r, c)) }))) : "<p>No decisions yet.</p>"}
+${rulings ? `<p class="note">${rulings} ${rulings === 1 ? "ruling" : "rulings"} by Claude Code ${rulings === 1 ? "is" : "are"} not in the grid.</p>` : ""}
+`;
+
+  const list = (caption, ds) => (ds.length
+    ? table(caption, ["ID", "Date", "Decision", "Evidence"], ds.map((d) => tr([
+      escapeHtml(d.id), escapeHtml(when(d)),
+      inline(d.text) + (d.checked ? "" : note("not checked by a person")), recordRef(model, path, d.evidence)])))
+    : "<p>No decisions in this group.</p>");
+  const byPerson = own.filter((d) => d.proposedBy.some(isPerson));
+  const aiThenPerson = own.filter((d) => d.proposedBy.some((id) => id === "claude" || id === "subagent") && d.decidedBy.some(isPerson));
+  body += `<h2>Proposed by the researchers</h2>\n${list("Decisions proposed by the researchers", byPerson)}
+<h2>Proposed by Claude Code and decided by a researcher</h2>\n${list("Decisions proposed by Claude Code and decided by a researcher", aiThenPerson)}
+`;
+
+  const pairs = all.flatMap((d) => (d.replaces ?? []).map((old) => `<li>${escapeHtml(old)} → replaced by ${escapeHtml(d.id)}</li>`));
+  body += `<h2>Replaced decisions</h2>\n${pairs.length ? `<ul>\n${pairs.join("\n")}\n</ul>` : "<p>No decision is replaced.</p>"}\n`;
+
+  const fixes = all.flatMap((d) => [
+    ...(d.corrected ? [tr([escapeHtml(d.id), "Correction", escapeHtml(d.corrected.by), escapeHtml(d.corrected.date),
+      escapeHtml([d.corrected.fields.join(", "), d.corrected.notes.join(" ")].filter(Boolean).join(": ") || "-")])] : []),
+    ...(d.check ? [tr([escapeHtml(d.id), "Check", escapeHtml(d.check.by), escapeHtml(d.check.date), escapeHtml(d.check.note || "-")])] : []),
+  ]);
+  body += `<h2>Corrections and checks by the researchers</h2>\n${fixes.length
+    ? table("Corrections and checks", ["Decision", "Kind", "By", "Date", "Detail"], fixes) : "<p>No corrections or checks yet.</p>"}`;
+  return shell(model, path, "Contributions", body);
 }
 
 const repoUrl = (model) => model.config.repository.replace(/\/$/, "");
@@ -231,10 +347,6 @@ ${itemRows.length ? table("Open items and blockers", ["ID", "Item", "Blocks", "O
 ${callRows.length ? table("Paid calls by service", ["Service", "Calls", "Max calls", "Cost", "Max cost"], callRows) : "<p>No paid calls yet.</p>"}`;
   return shell(model, path, "Progress", body);
 }
-
-const PERSON_NONE = new Set(["claude", "subagent", "unknown"]);
-const isPersonDecision = (d) => d.decidedBy.some((id) => !PERSON_NONE.has(id));
-const pct = (n) => `${Math.round(n * 100) / 100}%`;
 
 export function renderTimeline(model) {
   const path = "timeline/index.html";
@@ -353,6 +465,7 @@ export function renderSite(model) {
     ["index.html", renderHome(model)],
     ["records/index.html", renderRecords(model)],
     ["decisions/index.html", renderDecisions(model)],
+    ["contributions/index.html", renderContributions(model)],
     ["timeline/index.html", renderTimeline(model)],
     ["progress/index.html", renderProgress(model)],
     ["process/index.html", renderProcess(model)],

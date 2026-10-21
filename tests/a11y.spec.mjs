@@ -9,7 +9,8 @@ const BASE = "/repo/";
 const RECORD = process.env.A11Y_SITE;
 const FIXTURE_PAGES = [
   "index.html", "records/index.html", "decisions/index.html", "progress/index.html",
-  "process/index.html", "timeline/index.html", "releases/index.html", "results/index.html", "docs/plans/2026-10-01-alpha-design/index.html",
+  "process/index.html", "timeline/index.html", "releases/index.html", "results/index.html", "contributions/index.html",
+  "docs/project/contributions/index.html", "docs/plans/2026-10-01-alpha-design/index.html",
   "docs/plans/2026-10-02-alpha-plan/index.html",
 ];
 const sitePages = (dir) => readdirSync(dir, { recursive: true }).map((p) => p.split(sep).join("/"))

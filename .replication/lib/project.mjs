@@ -221,6 +221,7 @@ function readReleasesAndResults(root, base, decisionIds) {
 function docKind(rel) {
   const suffix = rel.match(/-([a-z]+)\.md$/)?.[1];
   if (DOC_KINDS.includes(suffix)) return suffix;
+  if (rel === "project/contributions.md") return "contributions";
   if (rel.startsWith("probes/")) return "probes";
   if (rel.startsWith("calls/")) return "calls";
   if (rel.startsWith("findings/")) return "findings";
@@ -234,7 +235,7 @@ function readDocuments(base) {
         .map((p) => p.replaceAll("\\", "/")).filter((p) => p.endsWith("/README.md")).sort()
         .map((p) => `probes/${p}`)
     : [];
-  const paths = ["README.md", ...listMd(base, "plans"), ...listMd(base, "findings"), ...probes, "calls/README.md"]
+  const paths = ["README.md", ...listMd(base, "plans"), ...listMd(base, "findings"), ...probes, "calls/README.md", "project/contributions.md"]
     .filter((p) => existsSync(join(base, p)));
   return paths.map((path) => {
     const text = readFileSync(join(base, path), "utf8");
