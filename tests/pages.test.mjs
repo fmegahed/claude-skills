@@ -150,7 +150,7 @@ test("an extra page title is escaped", () => {
 });
 
 // Releases and Results pages
-import { cpSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 const REPO = "https://github.com/example/fixture";
@@ -340,17 +340,31 @@ test("contributions page shows replaced pairs, corrections and checks", () => {
   const html = site().get("contributions/index.html");
   assert.ok(html.includes("D1 \u2192 replaced by D3"));
   assert.ok(html.includes("D2 \u2192 replaced by D3"));
-  const part = section(html, "Corrections and checks by the researchers");
+  const part = section(html, "Corrections and checks");
   assert.match(part, /Correction/);
   assert.match(part, /Decided by/);
   assert.match(part, /Checked against the call log\./);
   assert.match(part, /Fiona Miller/);
+  assert.ok(!html.includes("Corrections and checks by the researchers"));
+});
+
+test("contributions page keeps a correction by a built-in ID, with its By (Ruling 12)", () => {
+  const dir = mkdtempSync(join(tmpdir(), "rm-claude-fix-"));
+  try {
+    cpSync("tests/fixtures/full", dir, { recursive: true });
+    const p = join(dir, "replication_materials/project/decisions.md");
+    writeFileSync(p, readFileSync(p, "utf8") + "| D1 | Evidence | x | claude | 2026-10-07 | Fixed the quote. |\n");
+    const m = loadProject(dir, OPTS);
+    assert.equal(m.decisions.find((d) => d.id === "D1").checked, false);
+    const part = section(renderSite(m).get("contributions/index.html"), "Corrections and checks");
+    assert.match(part, /<tr><td>D1<\/td><td>Correction<\/td><td>Claude Code<\/td><td>2026-10-07<\/td><td>Evidence: Fixed the quote\.<\/td><\/tr>/);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
 test("contributions page lists each check of a decision (M1)", () => {
   const m = model();
   m.decisions[1].checks.push({ by: "Alex Avila", byId: "aav", date: "2026-10-07", note: "Second look." });
-  const part = section(renderSite(m).get("contributions/index.html"), "Corrections and checks by the researchers");
+  const part = section(renderSite(m).get("contributions/index.html"), "Corrections and checks");
   assert.equal(part.match(/<td>Check<\/td>/g).length, 2);
   assert.ok(part.indexOf("Checked against the call log.") < part.indexOf("Second look."));
 });

@@ -286,7 +286,8 @@ ${rulings ? `<p class="note">${rulings} ${rulings === 1 ? "ruling" : "rulings"} 
       escapeHtml([d.corrected.fields.join(", "), d.corrected.notes.join(" ")].filter(Boolean).join(": ") || "-")])] : []),
     ...d.checks.map((c) => tr([escapeHtml(d.id), "Check", escapeHtml(c.by), escapeHtml(c.date), escapeHtml(c.note || "-")])),
   ]);
-  body += `<h2>Corrections and checks by the researchers</h2>\n${fixes.length
+  // Every row names its maker in By: a person, Claude Code, Subagent or Unknown (Ruling 12).
+  body += `<h2>Corrections and checks</h2>\n${fixes.length
     ? table("Corrections and checks", ["Decision", "Kind", "By", "Date", "Detail"], fixes) : "<p>No corrections or checks yet.</p>"}`;
   return shell(model, path, "Contributions", body);
 }
