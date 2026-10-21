@@ -1,6 +1,6 @@
 // Page renderers: SiteModel in, a Map of site path to HTML out.
 import { readFileSync } from "node:fs";
-import { escapeHtml, inline, rel, pageShell, CDN } from "./html.mjs";
+import { escapeHtml, inline, rel, pageShell, navItems, CDN } from "./html.mjs";
 import { STAGES } from "./project.mjs";
 
 const read = (f) => readFileSync(new URL(f, import.meta.url), "utf8");
@@ -93,9 +93,26 @@ export function renderHome(model) {
     ? `<ul>\n${model.counts.byDecider.map((c) => `<li>${escapeHtml(c.name)}: ${c.count}</li>`).join("\n")}\n</ul>`
     : "<p>No decisions yet.</p>";
   const link = (target, label) => `<li><a href="${escapeHtml(rel(path, target))}">${label}</a></li>`;
-  const extra = (model.config.pages ?? []).map((p) => `${link(p.path, escapeHtml(p.title))}\n`).join("");
+  const pageLinks = navItems(model).filter(([, target]) => target !== "index.html")
+    .map(([label, target]) => link(target, escapeHtml(label))).join("\n");
+  const release = model.releases[0];
+  const nowItems = [
+    `<li>Latest release: ${release ? `${escapeHtml(release.tag)}, ${escapeHtml(release.date)}` : "No release yet."}</li>`,
+    `<li>Milestone in progress: ${current ? ms(current) : "No milestone is in progress."}</li>`,
+  ].join("\n");
+  const open = model.openItems.length
+    ? `<ul>
+${model.openItems.map((o) => `<li>${escapeHtml(o.id)}: ${escapeHtml(o.item)}</li>`).join("\n")}
+</ul>`
+    : "<p>No open items.</p>";
   const body = `<h1>${escapeHtml(model.config.project)}</h1>
 ${lead ? `<p class="lead">${inline(lead)}</p>` : ""}
+<h2>Now</h2>
+<ul>
+${nowItems}
+</ul>
+<h3>Open items</h3>
+${open}
 <h2>Status</h2>
 <p>Current milestone: ${ms(current)}. Next milestone: ${ms(next)}. Date: ${escapeHtml(model.build.date)}.</p>
 <h2>Milestones</h2>
@@ -104,11 +121,8 @@ ${strip}
 ${counts}
 <h2>Pages</h2>
 <ul>
-${link("records/index.html", "Records")}
-${link("decisions/index.html", "Decisions")}
-${link("progress/index.html", "Progress")}
-${link("process/index.html", "Process")}
-${extra}<li><a href="${escapeHtml(model.config.repository)}">Repository</a></li>
+${pageLinks}
+<li><a href="${escapeHtml(model.config.repository)}">Repository</a></li>
 </ul>`;
   return shell(model, path, "Home", body);
 }
@@ -119,11 +133,12 @@ export function renderRecords(model) {
   const rows = model.documents.map((d) => tr([
     escapeHtml(d.date ?? "-"),
     `<a href="${escapeHtml(rel(path, docPath(d.path)))}">${escapeHtml(d.title)}</a>`,
-    escapeHtml(d.kind), escapeHtml(d.status ?? "-"),
+    escapeHtml(d.kind), escapeHtml(d.milestone ?? "-"), escapeHtml(d.size ?? "-"), escapeHtml(d.status ?? "-"),
+    `<a href="${escapeHtml(rel(path, docPath(d.path)))}">Page</a> <a href="${escapeHtml(`${model.config.repository}/blob/main/replication_materials/${d.path}`)}">GitHub</a>`,
   ], ` data-row data-kind="${escapeHtml(d.kind)}"`));
   const content = model.documents.length
     ? filterBar([{ key: "kind", label: "Kind", options: kinds.map((k) => ({ value: k, label: k })) }], model.documents.length)
-      + table("All documents", ["Date", "Title", "Kind", "Status"], rows)
+      + table("All documents", ["Date", "Title", "Kind", "Milestone", "Size", "Status", "Links"], rows)
     : "<p>No documents yet.</p>";
   return shell(model, path, "Records", `<h1>Records</h1>\n${content}`, { scripts: model.documents.length ? clientScript() : "" });
 }

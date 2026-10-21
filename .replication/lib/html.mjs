@@ -131,13 +131,17 @@ const NAV = [
   ["Process", "process/index.html"],
 ];
 
+// The nav items that show for this record, then the extra pages of site.config.json.
+export function navItems(model) {
+  const extra = (model.config.pages ?? []).map((p) => [p.title, p.path]);
+  return [...NAV.filter(([, , show]) => !show || show(model)).map(([label, target]) => [label, target]), ...extra];
+}
+
 export function pageShell({ path, title, body, model, head = "", scripts = "" }) {
   const project = model.config.project;
   const repo = model.config.repository;
   const tokens = { ...DEFAULT_TOKENS, ...(model.config.theme || {}) };
-  // The extra pages of site.config.json follow the record pages.
-  const extra = (model.config.pages ?? []).map((p) => [p.title, p.path]);
-  const items = [...NAV.filter(([, , show]) => !show || show(model)), ...extra].map(([label, target]) => {
+  const items = navItems(model).map(([label, target]) => {
     const current = target === path ? ' aria-current="page"' : "";
     return `<li><a href="${escapeHtml(rel(path, target))}"${current}>${escapeHtml(label)}</a></li>`;
   });

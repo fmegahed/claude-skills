@@ -256,3 +256,15 @@ test("extra pages are checked at load", () => {
         && e.message.startsWith(".replication/site.config.json:1: ") && re.test(e.message), JSON.stringify(pages)));
   }
 });
+
+test("documents carry milestone and size", () => {
+  const byPath = Object.fromEntries(model().documents.map((d) => [d.path, d]));
+  const plan = byPath["plans/2026-10-02-alpha-plan.md"];
+  const ledger = byPath["plans/2026-10-05-alpha-ledger.md"];
+  assert.equal(plan.milestone, "M2");
+  assert.equal(plan.size, "3 tasks");
+  assert.equal(ledger.milestone, "M2");
+  assert.equal(ledger.size, "2 tasks complete; 2 rulings");
+  assert.equal(byPath["plans/2026-10-01-alpha-design.md"].milestone, null);
+  assert.equal(byPath["plans/2026-10-01-alpha-design.md"].size, null);
+});

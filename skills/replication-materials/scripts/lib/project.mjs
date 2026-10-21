@@ -229,7 +229,22 @@ function docKind(rel) {
   return "readme";
 }
 
-function readDocuments(base) {
+// A plan shows its task count. A ledger shows its finished tasks and its rulings.
+function docSize(path, kind, text, decisions) {
+  const count = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+  if (kind === "plan") {
+    const n = [...text.matchAll(/^### Task \d+/gm)].length;
+    return n ? count(n, "task", "tasks") : null;
+  }
+  if (kind === "ledger") {
+    const done = new Set([...text.matchAll(/^Task (\d+): complete\b/gm)].map((m) => m[1])).size;
+    const rulings = decisions.filter((d) => d.file === path).length;
+    return `${count(done, "task", "tasks")} complete; ${count(rulings, "ruling", "rulings")}`;
+  }
+  return null;
+}
+
+function readDocuments(base, milestones, decisions) {
   const probes = existsSync(join(base, "probes"))
     ? readdirSync(join(base, "probes"), { recursive: true })
         .map((p) => p.replaceAll("\\", "/")).filter((p) => p.endsWith("/README.md")).sort()
@@ -242,9 +257,12 @@ function readDocuments(base) {
     const { title, meta } = readMeta(text, path);
     const parts = path.split("/");
     const datedName = path.startsWith("probes/") ? parts[1] : parts[parts.length - 1];
+    const kind = docKind(path);
+    const milestone = milestones.find((m) => m.plan === path || m.ledger === path)?.id ?? null;
     return {
-      path, title: title ?? parts[parts.length - 1], kind: docKind(path),
+      path, title: title ?? parts[parts.length - 1], kind,
       date: datedName.match(DATE_PREFIX)?.[1] ?? null, status: meta.Status ?? null, text,
+      milestone, size: docSize(path, kind, text, decisions),
     };
   }).sort((a, b) => (a.date === b.date ? 0 : a.date === null ? 1 : b.date === null ? -1 : a.date < b.date ? -1 : 1)
     || (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
@@ -334,7 +352,7 @@ export function loadProject(root, opts = {}) {
     results,
     recordFiles,
     events: readEvents(readRequired(base, "project/process.md"), "project/process.md"),
-    documents: readDocuments(base),
+    documents: readDocuments(base, milestones, decisions),
     calls: readCalls(base),
     counts: { byDecider },
     build: { sha: opts.gitSha ?? gitSha(root), date: opts.buildDate ?? new Date().toISOString().slice(0, 10) },

@@ -386,3 +386,34 @@ test("decisions page without topics has no topic filter or grid, and escapes imp
   assert.ok(html.includes("Impact: &lt;script&gt;alert(2)&lt;/script&gt;"));
   assert.ok(!html.includes("<script>alert(2)"));
 });
+
+test("Records has Milestone, Size and Links columns", () => {
+  const html = site().get("records/index.html");
+  for (const h of ["Date", "Title", "Kind", "Milestone", "Size", "Status", "Links"]) {
+    assert.match(html, new RegExp(`<th[^>]*>${h}</th>`), h);
+  }
+  assert.ok(html.includes("3 tasks"));
+  assert.ok(html.includes("2 tasks complete; 2 rulings"));
+  assert.ok(html.includes(`href="${REPO}/blob/main/replication_materials/plans/2026-10-02-alpha-plan.md">GitHub</a>`));
+  assert.ok(html.includes('href="../docs/plans/2026-10-02-alpha-plan/index.html">Page</a>'));
+});
+
+test("Home has Now before Status, and links every nav page", () => {
+  const html = site().get("index.html");
+  assert.ok(html.indexOf("<h2>Now</h2>") > 0 && html.indexOf("<h2>Now</h2>") < html.indexOf("<h2>Status</h2>"));
+  const now = html.slice(html.indexOf("<h2>Now</h2>"), html.indexOf("<h2>Status</h2>"));
+  assert.ok(now.includes("v0.2.0") && now.includes("2026-10-12"));
+  assert.ok(now.includes("M2"));
+  assert.ok(now.includes("O1"));
+  const pages = html.slice(html.indexOf("<h2>Pages</h2>"));
+  const labels = [...pages.matchAll(/<li><a [^>]*>([^<]*)<\/a><\/li>/g)].map((m) => m[1]);
+  assert.deepEqual(labels, ["Records", "Decisions", "Contributions", "Timeline", "Releases", "Results", "Progress", "Process", "Repository"]);
+});
+
+test("Now empty states", () => {
+  const m = { ...model(), releases: [], openItems: [], status: { current: null, next: null } };
+  const html = renderSite(m).get("index.html");
+  assert.ok(html.includes("No release yet."));
+  assert.ok(html.includes("No milestone is in progress."));
+  assert.ok(html.includes("No open items."));
+});
