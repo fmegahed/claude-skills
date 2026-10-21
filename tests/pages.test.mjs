@@ -188,7 +188,7 @@ test("results page has filters, status and source links", () => {
 
 test("nav has Releases and Results after Decisions when the files exist", () => {
   const labels = navLabels(site().get("index.html"));
-  assert.deepEqual(labels, ["Home", "Records", "Decisions", "Releases", "Results", "Progress", "Process", "Repository"]);
+  assert.deepEqual(labels, ["Home", "Records", "Decisions", "Timeline", "Releases", "Results", "Progress", "Process", "Repository"]);
 });
 
 test("a record without the two files builds with no pages and no nav items", () => {
@@ -198,7 +198,7 @@ test("a record without the two files builds with no pages and no nav items", () 
     for (const f of ["releases", "results"]) rmSync(join(dir, "replication_materials/project", `${f}.md`));
     const s = renderSite(loadProject(dir, OPTS));
     assert.ok(!s.has("releases/index.html") && !s.has("results/index.html"));
-    assert.deepEqual(navLabels(s.get("index.html")), ["Home", "Records", "Decisions", "Progress", "Process", "Repository"]);
+    assert.deepEqual(navLabels(s.get("index.html")), ["Home", "Records", "Decisions", "Timeline", "Progress", "Process", "Repository"]);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
@@ -216,4 +216,56 @@ test("release and result text is escaped", () => {
   const s = renderSite(m);
   assert.ok(!s.get("releases/index.html").includes("<img src=x>"));
   assert.ok(!s.get("results/index.html").includes("<b>r</b>"));
+});
+
+// Timeline page
+const h2s = (html) => [...html.matchAll(/<h2>([^<]*)<\/h2>/g)].map((m) => m[1]);
+const day = (html, d) => {
+  const i = html.indexOf(`<h2>${d}</h2>`);
+  const j = html.indexOf("<h2>", i + 4);
+  return html.slice(i, j < 0 ? undefined : j);
+};
+
+test("timeline has one h2 per date, newest first", () => {
+  const dates = h2s(site().get("timeline/index.html")).filter((h) => /^\d{4}-/.test(h));
+  assert.deepEqual(dates, [...dates].sort().reverse());
+  assert.equal(new Set(dates).size, dates.length);
+  assert.ok(dates.includes("2026-10-12") && dates.includes("2026-10-03") && dates.includes("2026-10-01"));
+});
+
+test("timeline orders timed items, then untimed items", () => {
+  const d = day(site().get("timeline/index.html"), "2026-10-03");
+  const plan = d.indexOf("Wrote the plan.");
+  const keep = d.indexOf("Keep the short prompt");
+  assert.ok(plan > 0 && keep > plan);
+  const rel = day(site().get("timeline/index.html"), "2026-10-12");
+  assert.match(rel, /Tag/);
+  assert.ok(rel.includes("v0.2.0"));
+});
+
+test("timeline shows a person's decision and counts the others in one line", () => {
+  const html = site().get("timeline/index.html");
+  assert.ok(day(html, "2026-10-01").includes("D1") && day(html, "2026-10-01").includes("Use the public corpus"));
+  const d2 = day(html, "2026-10-02");
+  assert.ok(!d2.includes("alert(1)"));
+  assert.match(d2, /<a href="\.\.\/decisions\/index\.html">1 decision or ruling by Claude Code<\/a>/);
+});
+
+test("timeline stage table has bars that are hidden from assistive tech", () => {
+  const html = site().get("timeline/index.html");
+  for (const h of ["Stage", "Start", "End", "Events"]) assert.ok(html.includes(`<th scope="col">${h}</th>`), h);
+  const bars = [...html.matchAll(/<div class="bar"[^>]*>/g)].map((m) => m[0]);
+  assert.equal(bars.length, 3);
+  for (const b of bars) {
+    assert.match(b, /aria-hidden="true"/);
+    assert.match(b, /width:\d+(\.\d+)?%/);
+  }
+});
+
+test("timeline empty state and escaping", () => {
+  const empty = renderSite({ ...model(), events: [], decisions: [], releases: [] }).get("timeline/index.html");
+  assert.ok(empty.includes("No events yet."));
+  const m = model();
+  m.events[0].what = "<img src=x>";
+  assert.ok(!renderSite(m).get("timeline/index.html").includes("<img src=x>"));
 });

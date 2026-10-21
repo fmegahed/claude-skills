@@ -19,6 +19,10 @@ const PAGE_CSS = `<style>
 .table-wrap table { min-width: 36rem; }
 caption { text-align: left; font-weight: 700; padding: 0 0 0.5rem; }
 .note { color: var(--muted); }
+.timeline-list { list-style: none; margin: 0 0 1rem; padding: 0; }
+.timeline-list li { padding: 0.25rem 0; }
+.bar-track { position: relative; height: 0.75rem; min-width: 8rem; background: var(--tan); }
+.bar { position: absolute; top: 0; bottom: 0; background: var(--accent-strong); }
 #doc-content { max-width: 52rem; }
 #doc-content table { min-width: 0; }
 #doc-fallback { white-space: pre-wrap; }
@@ -228,6 +232,73 @@ ${callRows.length ? table("Paid calls by service", ["Service", "Calls", "Max cal
   return shell(model, path, "Progress", body);
 }
 
+const PERSON_NONE = new Set(["claude", "subagent", "unknown"]);
+const isPersonDecision = (d) => d.decidedBy.some((id) => !PERSON_NONE.has(id));
+const pct = (n) => `${Math.round(n * 100) / 100}%`;
+
+export function renderTimeline(model) {
+  const path = "timeline/index.html";
+  // Each item: { date, time ("HH:MM[:SS]" or null), order, html }. Dates are UTC.
+  const items = [];
+  for (const e of model.events) {
+    items.push({ date: e.time.slice(0, 10), time: e.time.slice(11).replace("Z", ""), order: 0,
+      html: `<strong>${escapeHtml(e.stage)}</strong>, ${escapeHtml(names(model, [e.who]))}: ${escapeHtml(e.what)}` });
+  }
+  const counts = new Map();
+  const idNum = (id) => Number(id.replace(/\D+/g, "")) || 0;
+  for (const d of model.decisions) {
+    if (isPersonDecision(d)) {
+      items.push({ date: d.date, time: d.time, order: idNum(d.id),
+        html: `<strong>${escapeHtml(d.id)}</strong>${d.time ? ` ${escapeHtml(d.time)}` : ""}: ${inline(d.text)}` });
+    } else counts.set(d.date, (counts.get(d.date) ?? 0) + 1);
+  }
+  for (const r of model.releases) {
+    items.push({ date: r.date, time: r.time, order: 1e9,
+      html: `<span class="note">Tag</span> <strong>${escapeHtml(r.tag)}</strong>${r.time ? ` ${escapeHtml(r.time)}` : ""}: ${inline(r.summary)}` });
+  }
+  const dates = [...new Set([...items.map((i) => i.date), ...counts.keys()])].sort().reverse();
+  const stages = STAGES.filter((s) => model.events.some((e) => e.stage === s));
+  if (!dates.length) return shell(model, path, "Timeline", "<h1>Timeline</h1>\n<p>No events yet.</p>");
+
+  let body = "<h1>Timeline</h1>\n";
+  if (stages.length) {
+    const ms = (t) => Date.parse(t);
+    const first = Math.min(...model.events.map((e) => ms(e.time)));
+    const span = Math.max(...model.events.map((e) => ms(e.time))) - first;
+    const rows = stages.map((s) => {
+      const times = model.events.filter((e) => e.stage === s).map((e) => e.time);
+      const stamps = times.map(ms);
+      const start = Math.min(...stamps);
+      const end = Math.max(...stamps);
+      const left = span ? ((start - first) / span) * 100 : 0;
+      const width = span ? Math.max(((end - start) / span) * 100, 1) : 100;
+      const bar = `<div class="bar-track" aria-hidden="true"><div class="bar" aria-hidden="true" style="left:${pct(Math.min(left, 100 - Math.min(width, 100)))};width:${pct(width)}"></div></div>`;
+      return tr([escapeHtml(s), escapeHtml(times.reduce((a, b) => (ms(a) <= ms(b) ? a : b))),
+        escapeHtml(times.reduce((a, b) => (ms(a) >= ms(b) ? a : b))), String(times.length), bar]);
+    });
+    body += `<h2>Stages</h2>
+${table("Process stages", ["Stage", "Start", "End", "Events", "Span"], rows)}
+`;
+  }
+  for (const date of dates) {
+    const day = items.filter((i) => i.date === date);
+    const timed = day.filter((i) => i.time).sort((a, b) => a.time.localeCompare(b.time) || a.order - b.order);
+    const untimed = day.filter((i) => !i.time).sort((a, b) => a.order - b.order);
+    const lis = [...timed, ...untimed].map((i) => `<li>${i.time ? `<span class="note">${escapeHtml(i.time)}</span> ` : ""}${i.html}</li>`);
+    const n = counts.get(date);
+    if (n) {
+      const label = n === 1 ? "1 decision or ruling by Claude Code" : `${n} decisions and rulings by Claude Code`;
+      lis.push(`<li><a href="${escapeHtml(rel(path, "decisions/index.html"))}">${label}</a></li>`);
+    }
+    body += `<h2>${escapeHtml(date)}</h2>
+<ul class="timeline-list">
+${lis.join("")}
+</ul>
+`;
+  }
+  return shell(model, path, "Timeline", body);
+}
+
 export function renderProcess(model) {
   const path = "process/index.html";
   const head = ["Time (UTC)", "Stage", "Who", "What happened", "Records", "Session"];
@@ -282,6 +353,7 @@ export function renderSite(model) {
     ["index.html", renderHome(model)],
     ["records/index.html", renderRecords(model)],
     ["decisions/index.html", renderDecisions(model)],
+    ["timeline/index.html", renderTimeline(model)],
     ["progress/index.html", renderProgress(model)],
     ["process/index.html", renderProcess(model)],
   ]);
