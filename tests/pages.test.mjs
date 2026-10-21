@@ -148,3 +148,72 @@ test("an extra page title is escaped", () => {
   assert.ok(home.includes("&lt;b&gt;x&lt;/b&gt;"));
   assert.ok(!home.includes("<b>x</b>"));
 });
+
+// Releases and Results pages
+import { cpSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+const REPO = "https://github.com/example/fixture";
+const navLabels = (html) => [...html.match(/<nav[^]*?<\/nav>/)[0].matchAll(/<a [^>]*>([^<]*)<\/a>/g)].map((m) => m[1]);
+
+test("releases page lists releases newest first with links", () => {
+  const html = site().get("releases/index.html");
+  assert.ok(html.indexOf("<h2>v0.2.0</h2>") > 0);
+  assert.ok(html.indexOf("<h2>v0.2.0</h2>") < html.indexOf("<h2>v0.1.0</h2>"));
+  assert.ok(html.includes(`href="${REPO}/tree/v0.2.0"`));
+  assert.ok(html.includes(`href="${REPO}/commit/0123456789abcdef0123456789abcdef01234567"`));
+  assert.ok(html.includes(`href="${REPO}/compare/v0.1.0...v0.2.0"`));
+  assert.ok(!html.includes("compare/v0.1.0...v0.1.0") && !html.includes("/compare/undefined"));
+  assert.equal(html.match(/\/compare\//g).length, 1);
+});
+
+test("releases page tables hold decisions and results of each release", () => {
+  const html = site().get("releases/index.html");
+  const second = html.slice(html.indexOf("<h2>v0.2.0</h2>"), html.indexOf("<h2>v0.1.0</h2>"));
+  assert.ok(second.includes("Keep the short prompt"));
+  assert.ok(second.includes("Mean score of group a, new data"));
+  assert.ok(!second.includes("Mean score of group b"));
+  assert.match(html, /<th scope="col">Proposed by<\/th>/);
+});
+
+test("results page has filters, status and source links", () => {
+  const html = site().get("results/index.html");
+  assert.match(html, /data-filter-key="release" data-filter-value="v0\.1\.0"/);
+  assert.match(html, /data-filter-key="status" data-filter-value="Current"/);
+  assert.ok(html.includes("Replaced by H2"));
+  assert.ok(html.includes(`href="${REPO}/blob/v0.2.0/data/summary.csv#a"`));
+  assert.ok(html.includes(`href="${REPO}/blob/main/data/summary.csv"`));
+  assert.equal(html.match(/Replaced by/g).length, 1);
+});
+
+test("nav has Releases and Results after Decisions when the files exist", () => {
+  const labels = navLabels(site().get("index.html"));
+  assert.deepEqual(labels, ["Home", "Records", "Decisions", "Releases", "Results", "Progress", "Process", "Repository"]);
+});
+
+test("a record without the two files builds with no pages and no nav items", () => {
+  const dir = mkdtempSync(join(tmpdir(), "rm-empty-"));
+  try {
+    cpSync("tests/fixtures/full", dir, { recursive: true });
+    for (const f of ["releases", "results"]) rmSync(join(dir, "replication_materials/project", `${f}.md`));
+    const s = renderSite(loadProject(dir, OPTS));
+    assert.ok(!s.has("releases/index.html") && !s.has("results/index.html"));
+    assert.deepEqual(navLabels(s.get("index.html")), ["Home", "Records", "Decisions", "Progress", "Process", "Repository"]);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("a file with no rows gives an empty page", () => {
+  const m = { ...model(), releases: [], results: [] };
+  const s = renderSite(m);
+  assert.ok(s.get("releases/index.html").includes("No releases yet."));
+  assert.ok(s.get("results/index.html").includes("No results yet."));
+});
+
+test("release and result text is escaped", () => {
+  const m = model();
+  m.releases[0].summary = "<img src=x>";
+  m.results[0].result = "<b>r</b>";
+  const s = renderSite(m);
+  assert.ok(!s.get("releases/index.html").includes("<img src=x>"));
+  assert.ok(!s.get("results/index.html").includes("<b>r</b>"));
+});

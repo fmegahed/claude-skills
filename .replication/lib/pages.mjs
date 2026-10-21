@@ -149,6 +149,62 @@ export function renderDecisions(model) {
   return shell(model, path, "Decisions", `<h1>Decisions</h1>\n${content}`, { scripts: model.decisions.length ? clientScript() : "" });
 }
 
+const repoUrl = (model) => model.config.repository.replace(/\/$/, "");
+const extLink = (href, label) => `<a href="${escapeHtml(href)}">${escapeHtml(label)}</a>`;
+
+export function renderReleases(model) {
+  const path = "releases/index.html";
+  const repo = repoUrl(model);
+  const byId = new Map(model.decisions.map((d) => [d.id, d]));
+  const resultById = new Map(model.results.map((r) => [r.id, r]));
+  const parts = model.releases.map((r, i) => {
+    const older = model.releases[i + 1];
+    const links = [extLink(`${repo}/tree/${r.tag}`, "Files at this tag"), extLink(`${repo}/commit/${r.commit}`, `Commit ${r.commit.slice(0, 7)}`)];
+    if (older) links.push(extLink(`${repo}/compare/${older.tag}...${r.tag}`, `Changes since ${older.tag}`));
+    const dRows = r.decisionIds.map((id) => byId.get(id)).filter(Boolean)
+      .map((d) => tr([escapeHtml(d.id), inline(d.text), escapeHtml(names(model, d.proposedBy)), escapeHtml(names(model, d.decidedBy))]));
+    const rRows = r.resultIds.map((id) => resultById.get(id)).filter(Boolean)
+      .map((x) => tr([escapeHtml(x.id), inline(x.result), escapeHtml(x.value)]));
+    return `<section>
+<h2>${escapeHtml(r.tag)}</h2>
+<p class="note">${escapeHtml(r.date)}${r.time ? ` ${escapeHtml(r.time)} UTC` : ""}</p>
+<p>${inline(r.summary)}</p>
+<ul>
+${links.map((l) => `<li>${l}</li>`).join("\n")}
+</ul>
+${dRows.length ? table(`Decisions in ${r.tag}`, ["ID", "Decision", "Proposed by", "Decided by"], dRows) : "<p>No decisions in this release.</p>"}
+${rRows.length ? table(`Results in ${r.tag}`, ["ID", "Result", "Value"], rRows) : "<p>No results in this release.</p>"}
+</section>`;
+  });
+  const content = parts.length ? parts.join("\n") : "<p>No releases yet.</p>";
+  return shell(model, path, "Releases", `<h1>Releases</h1>\n${content}`);
+}
+
+export function renderResults(model) {
+  const path = "results/index.html";
+  const repo = repoUrl(model);
+  const replacedBy = new Map();
+  for (const r of model.results) for (const old of r.replaces) replacedBy.set(old, [...(replacedBy.get(old) ?? []), r.id]);
+  const status = (r) => (replacedBy.has(r.id) ? `Replaced by ${replacedBy.get(r.id).join(", ")}` : "Current");
+  const releases = [...new Set(model.results.map((r) => r.release).filter(Boolean))];
+  const hasUnreleased = model.results.some((r) => !r.release);
+  const source = (r) => (!r.source || r.source === "-" ? "-"
+    : extLink(`${repo}/blob/${r.release ?? "main"}/${r.source}`, r.source));
+  const rows = model.results.map((r) => tr([
+    escapeHtml(r.id), escapeHtml(r.release ?? "-"), inline(r.result), escapeHtml(r.value), source(r),
+    escapeHtml(r.decisionIds.join(", ") || "-"), escapeHtml(status(r)),
+  ], ` data-row data-release="${escapeHtml(r.release ?? "unreleased")}" data-status="${replacedBy.has(r.id) ? "Replaced" : "Current"}"`));
+  const relOptions = [...releases.map((t) => ({ value: t, label: t })), ...(hasUnreleased ? [{ value: "unreleased", label: "Not released" }] : [])];
+  const content = model.results.length
+    ? filterBar([
+      { key: "release", label: "Release", options: relOptions },
+      { key: "status", label: "Status", options: [{ value: "Current", label: "Current" }, { value: "Replaced", label: "Replaced" }] },
+    ], model.results.length)
+      + table("All results", ["ID", "Release", "Result", "Value", "Source", "Decisions", "Status"], rows)
+    : "<p>No results yet.</p>";
+  return shell(model, path, "Results", `<h1>Results</h1>\n${content}`, { scripts: model.results.length ? clientScript() : "" });
+}
+
 export function renderProgress(model) {
   const path = "progress/index.html";
   const msRows = model.milestones.map((m) => tr([
@@ -229,6 +285,9 @@ export function renderSite(model) {
     ["progress/index.html", renderProgress(model)],
     ["process/index.html", renderProcess(model)],
   ]);
+  // A missing file means no page. A file with no rows gives a page with an empty state.
+  if (model.recordFiles?.releases) site.set("releases/index.html", renderReleases(model));
+  if (model.recordFiles?.results) site.set("results/index.html", renderResults(model));
   for (const doc of model.documents) site.set(docPath(doc.path), renderDocument(model, doc));
   return site;
 }

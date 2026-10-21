@@ -118,10 +118,13 @@ img, svg { max-width: 100%; height: auto; }
 `;
 }
 
+// One ordered list of the record pages. A page with a third item shows only when it returns true.
 const NAV = [
   ["Home", "index.html"],
   ["Records", "records/index.html"],
   ["Decisions", "decisions/index.html"],
+  ["Releases", "releases/index.html", (m) => m.recordFiles?.releases],
+  ["Results", "results/index.html", (m) => m.recordFiles?.results],
   ["Progress", "progress/index.html"],
   ["Process", "process/index.html"],
 ];
@@ -132,7 +135,7 @@ export function pageShell({ path, title, body, model, head = "", scripts = "" })
   const tokens = { ...DEFAULT_TOKENS, ...(model.config.theme || {}) };
   // The extra pages of site.config.json follow the record pages.
   const extra = (model.config.pages ?? []).map((p) => [p.title, p.path]);
-  const items = [...NAV, ...extra].map(([label, target]) => {
+  const items = [...NAV.filter(([, , show]) => !show || show(model)), ...extra].map(([label, target]) => {
     const current = target === path ? ' aria-current="page"' : "";
     return `<li><a href="${escapeHtml(rel(path, target))}"${current}>${escapeHtml(label)}</a></li>`;
   });

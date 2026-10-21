@@ -215,7 +215,7 @@ function readReleasesAndResults(root, base, decisionIds) {
   checkReleaseResults(releases, results, releasesFile);
   const when = (r) => r.date + (r.time ?? "");
   releases.sort((a, b) => (when(a) < when(b) ? 1 : when(a) > when(b) ? -1 : 0));
-  return { releases, results };
+  return { releases, results, files: { releases: releasesText !== null, results: resultsText !== null } };
 }
 
 function docKind(rel) {
@@ -316,7 +316,7 @@ export function loadProject(root, opts = {}) {
     id: c.ID, item: c.Item, blocks: c.Blocks, owner: c.Owner,
   }));
   const { decisions, topics } = readAllDecisions(base, people);
-  const { releases, results } = readReleasesAndResults(root, base, decisions.map((d) => d.id));
+  const { releases, results, files: recordFiles } = readReleasesAndResults(root, base, decisions.map((d) => d.id));
   const tally = new Map();
   for (const d of decisions) for (const id of d.decidedBy) tally.set(id, (tally.get(id) ?? 0) + 1);
   const byDecider = [...tally].map(([id, count]) => ({ id, name: people.get(id).name, count }))
@@ -331,6 +331,7 @@ export function loadProject(root, opts = {}) {
     topics,
     releases,
     results,
+    recordFiles,
     events: readEvents(readRequired(base, "project/process.md"), "project/process.md"),
     documents: readDocuments(base),
     calls: readCalls(base),
