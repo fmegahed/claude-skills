@@ -5,6 +5,8 @@ import { parseTables, findTable, fenceFlags, RecordFormatError } from "./tables.
 export const PEOPLE_COLUMNS = ["ID", "Name", "Role", "Link"];
 export const DECISION_COLUMNS = ["ID", "Date", "Decision", "Proposed by", "Decided by", "How", "Evidence", "Source"];
 export const CORRECTION_COLUMNS = ["Decision", "Field", "New value", "Checked by", "Date", "Note"];
+export const TOPIC_COLUMNS = ["Topic", "Meaning"];
+export const CHECK_COLUMNS = ["Decision", "Checked by", "Date", "Note"];
 export const HOW_VALUES = ["chat", "question", "review", "measurement", "plan-approval", "playback", "ruling", "classified"];
 export const BUILT_IN_PEOPLE = { claude: "Claude Code", subagent: "Subagent", unknown: "Unknown" };
 
@@ -50,26 +52,86 @@ function checkHow(value, file, line) {
   return value;
 }
 
+// An empty cell or "-" means "not given".
+const given = (value) => {
+  const v = (value ?? "").trim();
+  return v === "" || v === "-" ? null : v;
+};
+
+const TIME_OF_DAY = /^([01]\d|2[0-3]):[0-5]\d$/;
+const DECISION_ID = /^D(\d+)$/;
+
+// A classified decision is checked when a correction or a check names it.
+const isChecked = (d) => d.how !== "classified" || d.corrected !== null || d.check !== null;
+
+export function readTopics(text, file) {
+  const table = parseTables(text, file).find((t) => t.heading === "Topics");
+  if (!table) return [];
+  return findTable([table], "Topics", TOPIC_COLUMNS, file).rows.map(({ cells: c }) => ({
+    topic: c.Topic, meaning: c.Meaning,
+  }));
+}
+
+export function readChecksTable(text, file) {
+  const table = parseTables(text, file).find((t) => t.heading === "Checks");
+  return table ? findTable([table], "Checks", CHECK_COLUMNS, file) : null;
+}
+
 export function readDecisions(text, file, people) {
   const table = findTable(parseTables(text, file), "Decisions", DECISION_COLUMNS, file);
+  const topics = readTopics(text, file).map((t) => t.topic);
+  if (table.columns.includes("Topic") && !parseTables(text, file).some((t) => t.heading === "Topics")) {
+    throw new RecordFormatError(file, table.line, "a Topic column needs a ## Topics table.");
+  }
   const seen = new Set();
-  return table.rows.map(({ line, cells: c }) => {
+  const rows = table.rows.map(({ line, cells: c }) => {
     if (seen.has(c.ID)) throw new RecordFormatError(file, line, `duplicate decision ID "${c.ID}".`);
     seen.add(c.ID);
-    return {
+    const time = given(c["Time (UTC)"]);
+    if (time !== null && !TIME_OF_DAY.test(time)) {
+      throw new RecordFormatError(file, line, `Time (UTC) "${time}" must look like 14:30.`);
+    }
+    const topic = given(c.Topic);
+    if (topic !== null && !topics.includes(topic)) {
+      throw new RecordFormatError(file, line, `Topic "${topic}" is not in ## Topics. Use one of: ${topics.join(", ")}.`);
+    }
+    const replaces = (given(c.Replaces) ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+    const d = {
       id: c.ID,
       date: c.Date,
+      time,
       text: c.Decision,
       proposedBy: personIds(c["Proposed by"], people, file, line),
       decidedBy: personIds(c["Decided by"], people, file, line),
       how: checkHow(c.How, file, line),
       evidence: c.Evidence,
       source: c.Source,
+      topic,
+      impact: given(c.Impact),
+      replaces,
       file,
       line,
       corrected: null,
+      check: null,
     };
+    d.checked = isChecked(d);
+    return d;
   });
+  // Replaces points to earlier decisions only, so check it after all rows are read.
+  for (const d of rows) {
+    const mine = DECISION_ID.exec(d.id);
+    for (const id of d.replaces) {
+      const theirs = DECISION_ID.exec(id);
+      if (!theirs) {
+        throw new RecordFormatError(file, d.line, `Replaces "${id}" must be a decision ID like D3.`);
+      }
+      if (!seen.has(id)) throw new RecordFormatError(file, d.line, `unknown decision "${id}".`);
+      if (mine && Number(theirs[1]) >= Number(mine[1])) {
+        throw new RecordFormatError(file, d.line, `${d.id} cannot replace a later decision ${id}.`);
+      }
+    }
+  }
+  return rows;
 }
 
 // A ruling line starts with "Ruling:" or "Ruling <n>:", after an optional "- ", backtick
@@ -103,6 +165,8 @@ export function readRulings(text, ledgerPath) {
       file: ledgerPath,
       line: i + 1,
       corrected: null,
+      check: null,
+      checked: true,
     });
   });
   return rulings;
@@ -137,6 +201,21 @@ export function applyCorrections(decisions, table, people, file) {
       notes: c.Note ? [...prev.notes, c.Note] : prev.notes,
       fields: prev.fields.includes(c.Field) ? prev.fields : [...prev.fields, c.Field],
     };
+    d.checked = isChecked(d);
+  }
+  return out;
+}
+
+export function applyChecks(decisions, table, people, file) {
+  const out = decisions.map((d) => ({ ...d }));
+  if (!table) return out;
+  const byId = new Map(out.map((d) => [d.id, d]));
+  for (const { line, cells: c } of table.rows) {
+    const d = byId.get(c.Decision);
+    if (!d) throw new RecordFormatError(file, line, `check names unknown decision "${c.Decision}".`);
+    const [checker] = personIds(c["Checked by"], people, file, line);
+    d.check = { by: people.get(checker).name, date: c.Date, note: c.Note };
+    d.checked = isChecked(d);
   }
   return out;
 }

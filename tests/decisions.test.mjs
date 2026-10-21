@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { parseTables } from "../skills/replication-materials/scripts/lib/tables.mjs";
 import {
-  readPeople, readDecisions, readRulings, readCorrectionsTable, applyCorrections,
+  readPeople, readDecisions, readRulings, readCorrectionsTable, applyCorrections, readTopics, readChecksTable, applyChecks,
 } from "../skills/replication-materials/scripts/lib/decisions.mjs";
 
 const ROADMAP = `# Roadmap
@@ -181,4 +181,78 @@ test("corrections accumulate, reach rulings, and reject unknown fields", () => {
 
 test("readCorrectionsTable returns null when absent", () => {
   assert.equal(readCorrectionsTable(DECISIONS, "project/decisions.md"), null);
+});
+
+const HEAD = "| ID | Date | Time (UTC) | Decision | Proposed by | Decided by | How | Evidence | Source | Topic | Impact | Replaces |\n" +
+  "|----|------|------|----|----|----|----|----|----|----|----|----|\n";
+const TOPICS = "\n## Topics\n\n| Topic | Meaning |\n|---|---|\n| prompts | Prompt wording. |\n| data | Data sources. |\n";
+const row = (id, o = {}) => {
+  const v = { time: "-", how: "chat", topic: "-", impact: "-", replaces: "-", ...o };
+  return `| ${id} | 2026-10-01 | ${v.time} | Text | claude | fmm | ${v.how} | - | n.md | ${v.topic} | ${v.impact} | ${v.replaces} |
+`;
+};
+const rd = (rows, extra = TOPICS) => readDecisions(`## Decisions
+
+${HEAD}${rows}${extra}`, "decisions.md", people());
+
+test("a table without the optional columns gives null and empty values", () => {
+  const [d] = readDecisions(DECISIONS, "project/decisions.md", people());
+  assert.equal(d.time, null);
+  assert.equal(d.topic, null);
+  assert.equal(d.impact, null);
+  assert.deepEqual(d.replaces, []);
+  assert.equal(d.check, null);
+  assert.equal(d.checked, true);
+});
+
+test("Time (UTC) must look like HH:MM", () => {
+  assert.equal(rd(row("D1", { time: "21:05" }))[0].time, "21:05");
+  assert.equal(rd(row("D1", { time: "-" }))[0].time, null);
+  assert.equal(rd(row("D1", { time: "" }))[0].time, null);
+  for (const t of ["25:00", "9:05"]) {
+    assert.throws(() => rd(row("D1", { time: t })), new RegExp(`decisions\\.md:\\d+: Time \\(UTC\\) "${t}" must look like 14:30\\.`));
+  }
+});
+
+test("Topic must be in the Topics table", () => {
+  assert.equal(rd(row("D1", { topic: "data" }))[0].topic, "data");
+  assert.equal(rd(row("D1", { topic: "-" }))[0].topic, null);
+  assert.throws(() => rd(row("D1", { topic: "stats" })), /Topic "stats" is not in ## Topics\. Use one of: prompts, data\./);
+  assert.throws(() => rd(row("D1"), ""), /a Topic column needs a ## Topics table/);
+  assert.deepEqual(readTopics(`## Decisions\n${TOPICS}`, "d.md"), [
+    { topic: "prompts", meaning: "Prompt wording." }, { topic: "data", meaning: "Data sources." }]);
+  assert.deepEqual(readTopics(DECISIONS, "d.md"), []);
+  assert.deepEqual(rd(row("D1"), "\n## Topics\n\n| Topic | Meaning |\n|---|---|\n").map((d) => d.topic), [null]);
+});
+
+test("Replaces lists earlier decisions", () => {
+  const rows = row("D1") + row("D2") + row("D3") + row("D4") + row("D5", { replaces: "D3, D4" });
+  assert.deepEqual(rd(rows)[4].replaces, ["D3", "D4"]);
+  assert.deepEqual(rd(row("D1") + row("D2", { replaces: "-" }))[1].replaces, []);
+  assert.throws(() => rd(row("D4") + row("D7") + row("D5", { replaces: "D7" })), /D5 cannot replace a later decision D7\./);
+  assert.throws(() => rd(row("D4", { replaces: "D99" })), /unknown decision "D99"/);
+  assert.throws(() => rd(row("D4") + row("D5", { replaces: "R-2026-10-05-a-1" })), /must be a decision ID like D3/);
+});
+
+test("checked is false only for an unchecked classified decision", () => {
+  const ds = rd(row("D1", { how: "classified" }) + row("D2", { how: "review" }) + row("D3", { how: "classified" }));
+  assert.deepEqual(ds.map((d) => d.checked), [false, true, false]);
+  const corr = readCorrectionsTable(CORRECTIONS.replace("D2", "D1"), "d.md");
+  const fixed = applyCorrections(ds, corr, people(), "d.md");
+  assert.deepEqual(fixed.map((d) => d.checked), [true, true, false]);
+  const checks = readChecksTable("## Checks\n\n| Decision | Checked by | Date | Note |\n|---|---|---|---|\n| D3 | ab | 2026-10-06 | Looks right. |\n", "d.md");
+  const done = applyChecks(fixed, checks, people(), "d.md");
+  assert.deepEqual(done.map((d) => d.checked), [true, true, true]);
+  assert.deepEqual(done[2].check, { by: "Ann B.", date: "2026-10-06", note: "Looks right." });
+  assert.equal(done[0].check, null);
+  assert.equal(readChecksTable(DECISIONS, "d.md"), null);
+});
+
+test("a Checks row with an unknown decision or person throws with its line", () => {
+  const head = "## Checks\n\n| Decision | Checked by | Date | Note |\n|---|---|---|---|\n";
+  const ds = rd(row("D1", { how: "classified" }));
+  assert.throws(() => applyChecks(ds, readChecksTable(head + "| D9 | ab | 2026-10-06 | x |\n", "d.md"), people(), "d.md"),
+    /d\.md:5: check names unknown decision "D9"/);
+  assert.throws(() => applyChecks(ds, readChecksTable(head + "| D1 | zz | 2026-10-06 | x |\n", "d.md"), people(), "d.md"),
+    /d\.md:5: unknown person "zz"/);
 });

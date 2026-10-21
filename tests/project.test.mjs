@@ -38,6 +38,17 @@ test("decisions include rulings after D rows", () => {
   assert.ok(d3.corrected);
 });
 
+test("topics and checks come from the fixture", () => {
+  const m = model();
+  assert.deepEqual(m.topics.map((t) => t.topic), ["prompts", "data"]);
+  const by = Object.fromEntries(m.decisions.map((d) => [d.id, d]));
+  assert.equal(by.D1.checked, false);
+  assert.equal(by.D2.checked, true);
+  assert.equal(by.D2.check.by, "Fiona Miller");
+  assert.equal(by.D3.topic, "prompts");
+  assert.deepEqual(by.D3.replaces, ["D1", "D2"]);
+});
+
 test("a correction of a ruling ID applies", () => {
   const dir = tempCopy();
   try {

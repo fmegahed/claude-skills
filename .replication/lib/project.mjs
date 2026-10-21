@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { parseTables, findTable, readMeta, RecordFormatError } from "./tables.mjs";
 import { DEFAULT_TOKENS } from "./html.mjs";
 import {
-  readPeople, readDecisions, readRulings, readCorrectionsTable, applyCorrections,
+  readPeople, readDecisions, readRulings, readCorrectionsTable, applyCorrections, readTopics, readChecksTable, applyChecks,
 } from "./decisions.mjs";
 
 export const FORMAT_VERSION = 1;
@@ -195,7 +195,11 @@ function readAllDecisions(base, people) {
   const rows = readDecisions(text, file, people).sort((a, b) => dNum(a) - dNum(b));
   const rulings = listMd(base, "plans").filter((f) => f.endsWith("-ledger.md"))
     .flatMap((f) => readRulings(readFileSync(join(base, f), "utf8"), f));
-  return applyCorrections([...rows, ...rulings], readCorrectionsTable(text, file), people, file);
+  const corrected = applyCorrections([...rows, ...rulings], readCorrectionsTable(text, file), people, file);
+  return {
+    decisions: applyChecks(corrected, readChecksTable(text, file), people, file),
+    topics: readTopics(text, file),
+  };
 }
 
 function docKind(rel) {
@@ -295,7 +299,7 @@ export function loadProject(root, opts = {}) {
   const openItems = findTable(roadmapTables, "Open items", OPEN_ITEM_COLUMNS, roadmapFile).rows.map(({ cells: c }) => ({
     id: c.ID, item: c.Item, blocks: c.Blocks, owner: c.Owner,
   }));
-  const decisions = readAllDecisions(base, people);
+  const { decisions, topics } = readAllDecisions(base, people);
   const tally = new Map();
   for (const d of decisions) for (const id of d.decidedBy) tally.set(id, (tally.get(id) ?? 0) + 1);
   const byDecider = [...tally].map(([id, count]) => ({ id, name: people.get(id).name, count }))
@@ -307,6 +311,7 @@ export function loadProject(root, opts = {}) {
       next: milestones.find((m) => m.state === "next") ?? null,
     },
     decisions,
+    topics,
     events: readEvents(readRequired(base, "project/process.md"), "project/process.md"),
     documents: readDocuments(base),
     calls: readCalls(base),
