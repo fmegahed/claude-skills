@@ -64,6 +64,7 @@ for (const [name, row, pattern] of [
   ["unknown release", ["H1", "v9.9.9", "A", "1", "data/summary.csv", "-", "-"], /f:5: Release "v9\.9\.9" is not a tag in releases\.md/],
   ["missing source", ["H1", "-", "A", "1", "x", "-", "-"], /f:5: Source "x" is not a file in the repository\./],
   ["source outside", ["H1", "-", "A", "1", "../x", "-", "-"], /f:5: Source "\.\.\/x" is not a file in the repository\./],
+  ["backslash source", ["H1", "-", "A", "1", "data\\summary.csv", "-", "-"], /f:5: Source "data\\summary\.csv" is not a file in the repository\./],
   ["unknown decision", ["H1", "-", "A", "1", "data/summary.csv", "D9", "-"], /f:5: unknown decision "D9"/],
   ["unknown replaces", ["H1", "-", "A", "1", "data/summary.csv", "-", "H7"], /f:5: unknown result "H7"/],
 ]) {
@@ -82,10 +83,20 @@ test("result IDs must be unique", () => {
 
 test("a release Results cell must name results that exist", () => {
   const releases = readReleases(rel(["v1.0.0", "2026-10-05", "abc1234", "T.", "-", "H1, H5"]), "project/releases.md", IDS);
-  const results = readResults(res(okRes), "project/results.md", opts);
+  const results = readResults(res(["H1", "v1.0.0", "Mean", "1.5", "data/summary.csv", "-", "-"]), "project/results.md", opts);
   assert.deepEqual(releases[0].resultIds, ["H1", "H5"]);
   assert.throws(() => checkReleaseResults(releases, results, "project/releases.md"),
     /project\/releases\.md:5: unknown result "H5"/);
+});
+
+test("a release lists only results that belong to it", () => {
+  const releases = readReleases(rel(["v1.0.0", "2026-10-05", "abc1234", "T.", "-", "H1"]), "project/releases.md", IDS);
+  const other = readResults(res(["H1", "v2.0.0", "Mean", "1", "data/summary.csv", "-", "-"]), "f", { ...opts, releaseTags: ["v1.0.0", "v2.0.0"] });
+  assert.throws(() => checkReleaseResults(releases, other, "project/releases.md"),
+    /project\/releases\.md:5: Results lists H1, but H1 belongs to release v2\.0\.0\./);
+  const none = readResults(res(okRes), "f", opts);
+  assert.throws(() => checkReleaseResults(releases, none, "project/releases.md"),
+    /project\/releases\.md:5: Results lists H1, but H1 has no release\./);
 });
 
 function tempCopy() {

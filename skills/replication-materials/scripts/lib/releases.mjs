@@ -73,7 +73,7 @@ function checkSource(source, root, file, line) {
   const path = source.split("#")[0];
   const parts = path.split("/");
   const fail = () => new RecordFormatError(file, line, `Source "${source}" is not a file in the repository.`);
-  if (path === "" || /[\:]/.test(path) || parts.some((p) => p === "" || p === "." || p === "..")) throw fail();
+  if (path === "" || /[:\\]/.test(path) || parts.some((p) => p === "" || p === "." || p === "..")) throw fail();
   const full = join(root, path);
   if (!existsSync(full) || !statSync(full).isFile()) throw fail();
 }
@@ -107,10 +107,15 @@ export function readResults(text, file, { root, releaseTags, decisionIds }) {
 
 // Each release must name results that exist in results.md.
 export function checkReleaseResults(releases, results, file) {
-  const ids = new Set(results.map((r) => r.id));
+  const byId = new Map(results.map((r) => [r.id, r]));
   for (const r of releases) {
     for (const id of r.resultIds) {
-      if (!ids.has(id)) throw new RecordFormatError(file, r.line, `unknown result "${id}".`);
+      const result = byId.get(id);
+      if (!result) throw new RecordFormatError(file, r.line, `unknown result "${id}".`);
+      if (result.release !== r.tag) {
+        const owner = result.release === null ? "has no release" : `belongs to release ${result.release}`;
+        throw new RecordFormatError(file, r.line, `Results lists ${id}, but ${id} ${owner}.`);
+      }
     }
   }
 }
