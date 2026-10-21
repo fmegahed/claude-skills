@@ -73,3 +73,11 @@ test("an empty --out is refused and leaves the folder alone", () => {
   assert.match(r.stderr, /replication-materials: --out needs a folder name\./);
   assert.equal(readFileSync(join(cwd, "index.html"), "utf8"), "mine");
 });
+
+test("every page names generator replication-materials 1.2.0", () => {
+  const out = join(tmp(), "site");
+  assert.equal(run("tests/fixtures/full", out).status, 0);
+  for (const page of ["index.html", "records/index.html", "decisions/index.html", "progress/index.html", "process/index.html"]) {
+    assert.match(readFileSync(join(out, page), "utf8"), /<meta name="generator" content="replication-materials 1\.2\.0">/, page);
+  }
+});

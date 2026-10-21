@@ -117,6 +117,10 @@ The `Source` and `Session` columns hold the session ID.
    - For How `review`, `measurement` or `plan-approval`, you can name the record line in place of a quote.
      An example is `findings/2026-10-19-noise-findings.md, Table 2`.
    - Write nothing else in the Evidence cell.
+   - Time (UTC): the time of the decision, from `date -u +%H:%M`.
+   - Topic: a row of `## Topics`. Add the row to `## Topics` first when the topic is new.
+   - Impact: one phrase on what the decision changes. Replaces: the earlier `D` IDs that this decision replaces. Write both only when they apply.
+   - Time, Topic, Impact and Replaces are optional columns. Add them to the header when you first need them. The build reads them by name.
 2. When the person accepts an option that Claude Code recommended, write Proposed by `claude` and Decided by the person ID.
 3. When the person approves a plan, add or update its row in `## Milestones` of `roadmap.md`.
    - Write each path relative to `replication_materials/`, for example `plans/2026-10-18-m1-plan.md`.
@@ -126,15 +130,20 @@ The `Source` and `Session` columns hold the session ID.
    - Never write an approval that the person did not give.
    - Log each call that Claude Code makes in `calls/<service>-calls.csv`. Stop at the limits of the row.
    - Never write a key, a token or an authorization header in any file.
-6. Run the build check after each edit of a record.
-7. Commit record changes with no code. This is the record rule:
+6. At each tag, add a row to `project/releases.md`. Make the file from `<skill>/templates/replication_materials/project/releases.md` when it does not exist.
+7. When the work gives a headline result, add a row to `project/results.md`. Make the file from the template when it does not exist.
+   - A new result that replaces an old one names it in Replaces. Never edit the old row.
+8. When a person checks a classified row and finds it right, add a row to `## Checks` in `decisions.md`. Add the table from the template when it does not exist.
+9. `project/contributions.md` is the account of the researchers. Make it from the template when the person asks. Claude Code can draft it. A researcher must approve it.
+10. Run the build check after each edit of a record.
+11. Commit record changes with no code. This is the record rule:
    - On `main`, commit and push them without asking. Push in small groups, for example at each change of stage.
    - If the code work is in a git worktree, commit the records in the main checkout, on `main`.
    - If the code work is on a branch in the main checkout, commit the records on that branch.
    - On that branch, do not push without asking. The records reach `main` at the merge.
    - After a push to `main`, check that the run of the pushed commit passed:
      `gh run list --workflow replication-site.yml --commit "$(git rev-parse HEAD)" --limit 1`.
-8. To show a rendered analysis on the website, add it to `pages` in `.replication/site.config.json`.
+12. To show a rendered analysis on the website, add it to `pages` in `.replication/site.config.json`.
    - An example is the HTML of a Quarto or R Markdown file: `{ "file": "analysis.html", "title": "Analysis" }`.
    - The build copies the file alone. Use a self-contained file: `embed-resources: true` in Quarto, `self_contained: true` in R Markdown.
    - Commit the file. Each push to `main` builds the website again.
@@ -165,7 +174,7 @@ The `Source` and `Session` columns hold the session ID.
    - Then set the first `planned` milestone, if one exists, to `next`.
 6. If a deferred item in the ledger blocks a later milestone, add it to `## Open items`.
 7. Add a row to `process.md` for the end of the milestone. Use the stage of the work that ended.
-8. Run the build check. Commit the record by the record rule (During the work, step 7).
+8. Run the build check. Commit the record by the record rule (During the work, step 11).
 
 ## Correction
 
@@ -174,7 +183,7 @@ The `Source` and `Session` columns hold the session ID.
    - Field: `Decision`, `Proposed by`, `Decided by`, `How` or `Evidence`.
    - Checked by: the ID of the person who checked the record. Claude Code can write the row for that person.
 2. Do not change or delete the original row or the ledger line.
-3. Run the build check. Commit the record by the record rule (During the work, step 7).
+3. Run the build check. Commit the record by the record rule (During the work, step 11).
 
 ## Update
 
@@ -184,6 +193,8 @@ The `Source` and `Session` columns hold the session ID.
 4. In `CLAUDE.md`, replace the block from its start marker to its end marker with `<skill>/templates/CLAUDE-block.md`.
    - Keep all other text of `CLAUDE.md`.
 5. Never replace a record. Do not change `replication_materials/` or `.replication/site.config.json`.
+   - Version 1.2.0 adds `releases.md`, `results.md`, `contributions.md`, the `## Topics` and `## Checks` tables, and the decision columns Time (UTC), Topic, Impact and Replaces.
+   - They are all optional. A project adds each one when it first needs it (During the work). The update adds none of them.
 6. Run the build check. Commit these files alone. Ask the person before you push: this commit is not record-only.
 
 ## Red flags
@@ -196,6 +207,8 @@ The `Source` and `Session` columns hold the session ID.
 | "A ruling is a decision, so it goes in `decisions.md`." | The build reads rulings from the ledger copy. |
 | "`milestone-close` is a better stage name." | Use only the allowed values. |
 | "The edit is small, so the build will pass." | Run the build check after each edit. |
+| "The contributions page is done. I wrote it." | Claude Code can draft `contributions.md`. It is not complete until a researcher approves it. |
+| "A new result replaces the old one, so I fix the old row." | Never edit an old result. Add a row that names it in Replaces. |
 | "A short note in Evidence helps the reader." | Evidence holds a quote and its date, or the name of a record line. Nothing else. |
 | "The cost is small. The person will approve it." | Make no paid call before the person approves a budget row. |
 | "Pages exists, so I set its build type to `workflow`." | That can replace the site of the project. Ask the person first. |

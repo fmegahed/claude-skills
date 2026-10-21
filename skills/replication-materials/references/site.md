@@ -4,13 +4,19 @@
 
 | Page | Content |
 |---|---|
-| Home | The project name and the lead paragraph of the record README. Status: the current milestone, the next milestone and the date. A strip of the milestones in order, with their states. Counts of decisions by each person, by Claude Code and by Unknown. Links to the repository and to the other pages. |
-| Records | A table of all documents in `replication_materials/`, in the order of the date in the file name. Columns: date, title, kind, status. Filter buttons by kind. Each title links to its document page. |
-| Decisions | All decisions: the rows of `decisions.md` and the `Ruling:` lines of the ledgers. Columns: ID, date, decision, proposed by, decided by, how, evidence, source document. Filter buttons by "decided by" and by "how". A corrected record shows the new values and "Corrected by {name}, {date}". |
+| Home | The project name and the lead paragraph of the record README. A "Now" section: the current milestone, the next milestone and the date. A strip of the milestones in order, with their states. Counts of decisions by each person, by Claude Code and by Unknown. Links to the repository and to the other pages. |
+| Records | A table of all documents in `replication_materials/`, in the order of the date in the file name. Columns: date, title, kind, status, milestone, size, links. Filter buttons by kind. Each title links to its document page. |
+| Decisions | All decisions: the rows of `decisions.md` and the `Ruling:` lines of the ledgers. Columns: ID, date, decision, proposed by, decided by, how, evidence, source document. The optional columns add the time, the topic, the impact and the decisions replaced. A classified decision without a check shows "not checked by a person". Filter buttons by "decided by" and by "how". A corrected record shows the new values and "Corrected by {name}, {date}". |
 | Progress | The milestones with their states and plans. The open items and blockers from `roadmap.md`. For each plan with a ledger: the tasks complete out of the tasks in the plan. A plan without a ledger shows `-`. A table of paid calls. |
+| Contributions | The text of `project/contributions.md` and its Item/Value table (Status, Written by, Approved by). |
+| Timeline | The decisions, the releases and the results in one order of time. |
+| Releases | One row for each release in `releases.md`, with its decisions and results. Only when `releases.md` exists. |
+| Results | One row for each result in `results.md`, with its release, source and decisions. A replaced result shows the result that replaces it. Only when `results.md` exists. |
 | Process | The events of `process.md` by date, and a second view grouped by stage. |
 | Document pages | One page for each markdown file in `plans/`, `findings/`, `probes/` and `calls/`, and for the record README. |
 | Extra pages | The files in `pages` of `.replication/site.config.json`, for example a rendered analysis. Each file is copied as it is to `pages/<file name>`. The navigation and the Home page link to each one. |
+
+The navigation order is: Home, Records, Decisions, Contributions, Timeline, Releases, Results, Progress, Process, extra pages, Repository.
 
 The footer of each page says "Built from commit {sha} on {date}." It links to the repository.
 
@@ -118,7 +124,7 @@ The file is `.github/workflows/replication-site.yml`.
 - Permissions: none at the top level. The build job has `contents: read`. The deploy job has `pages: write` and `id-token: write`.
 - Concurrency group `pages`. A new run does not cancel a running deploy.
 - Each action is pinned to a full commit SHA, with the tag in a comment.
-- The first line is the version line, for example `# replication-materials 1.1.0`.
+- The first line is the version line, for example `# replication-materials 1.2.0`.
 - The workflow and the links of the website use the branch `main`. Set-up stops when the default branch is not `main`.
 - Check the run of the pushed commit: `gh run list --workflow replication-site.yml --commit "$(git rev-parse HEAD)" --limit 1`.
 - After the first push, if no run has started within 60 seconds, start it: `gh workflow run replication-site.yml --ref main`.
@@ -156,8 +162,9 @@ gh run watch "$(gh run list --workflow replication-site.yml --commit "$(git rev-
   - `.github/workflows/replication-site.yml`.
   - The block in `CLAUDE.md`, from `<!-- replication-materials:start -->` to `<!-- replication-materials:end -->`.
 - The records belong to the project. `.replication/site.config.json` also belongs to the project.
-- The build script and the workflow have a version line: `// replication-materials 1.1.0` and `# replication-materials 1.1.0`.
+- The build script and the workflow have a version line: `// replication-materials 1.2.0` and `# replication-materials 1.2.0`.
 - Version 1.1.0 adds extra pages, and its workflow runs on each push to `main`.
+- Version 1.2.0 adds releases, results, a timeline, a contributions page and more decision detail; all of them are optional.
 - `site.config.json` has `format_version`. The build reads format version 1.
 - When `format_version` is newer than the build script, the build stops. The message says "Run the update procedure of the replication-materials skill."
 - Set-up never replaces a file that exists. Only the update procedure replaces skill-owned files.

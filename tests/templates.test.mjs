@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { cpSync, mkdtempSync, readFileSync, readdirSync, statSync, writeFileSync, mkdirSync } from "node:fs";
+import { cpSync, existsSync, mkdtempSync, readFileSync, readdirSync, statSync, writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, sep } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -45,6 +45,20 @@ test("templates build to a site", () => {
   const records = readFileSync(join(out, "records/index.html"), "utf8");
   assert.match(records, /docs\/README\/index\.html/);
   assert.match(records, /docs\/calls\/README\/index\.html/);
+  for (const page of ["releases", "results", "timeline", "contributions"]) {
+    assert.ok(existsSync(join(out, page, "index.html")), page);
+  }
+  assert.match(readFileSync(join(out, "index.html"), "utf8"), /replication-materials 1\.2\.0/);
+});
+
+test("the new templates hold no fill-in marker and the new tables", () => {
+  for (const f of ["releases", "results", "contributions"]) {
+    assert.doesNotMatch(read(`replication_materials/project/${f}.md`), /\[[^\]]+\]([^(]|$)/, f);
+  }
+  const d = read("replication_materials/project/decisions.md");
+  assert.match(d, /\| Source \| Time \(UTC\) \| Topic \| Impact \| Replaces \|/);
+  assert.match(d, /^## Topics$/m);
+  assert.match(d, /^## Checks$/m);
 });
 
 test("workflow pins every action to a SHA", () => {
@@ -55,7 +69,7 @@ test("workflow pins every action to a SHA", () => {
 
 test("workflow gives each job only its permissions", () => {
   const y = read(".github/workflows/replication-site.yml");
-  assert.match(y, /^# replication-materials 1\.1\.0\n/);
+  assert.match(y, /^# replication-materials 1\.2\.0\n/);
   assert.match(y, /^permissions: \{\}$/m);
   assert.match(y, /pages:\s*\n(?:.*\n)*?\s+permissions:\s*\n\s+pages: write\n\s+id-token: write/);
   assert.doesNotMatch(y, /^  artifact:/m);

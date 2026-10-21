@@ -15,8 +15,11 @@ replication_materials/
   calls/             README.md (budgets) and <service>-calls.csv
   project/
     roadmap.md       people, milestones, open items
-    decisions.md     decisions and corrections
+    decisions.md     decisions, topics, corrections and checks
     process.md       events
+    releases.md      optional: one row for each tag
+    results.md       optional: the headline results
+    contributions.md optional: the account of the researchers
   environment/       session information, lock files, versions
 .replication/
   build-site.mjs     the build script (a copy from the skill), with lib/
@@ -49,10 +52,16 @@ Keep each header and its column order exactly.
 | `project/roadmap.md` | `## Milestones` | `ID`, `Milestone`, `State`, `Plan`, `Ledger` |
 | `project/roadmap.md` | `## Open items` | `ID`, `Item`, `Blocks`, `Owner` |
 | `project/decisions.md` | `## Decisions` | `ID`, `Date`, `Decision`, `Proposed by`, `Decided by`, `How`, `Evidence`, `Source` |
+| `project/decisions.md` | `## Topics` | `Topic`, `Meaning` |
 | `project/decisions.md` | `## Corrections` | `Decision`, `Field`, `New value`, `Checked by`, `Date`, `Note` |
+| `project/decisions.md` | `## Checks` | `Decision`, `Checked by`, `Date`, `Note` |
+| `project/releases.md` | `## Releases` | `Tag`, `Date`, `Commit`, `Summary`, `Decisions`, `Results` |
+| `project/results.md` | `## Results` | `ID`, `Release`, `Result`, `Value`, `Source`, `Decisions`, `Replaces` |
 | `project/process.md` | (the first table) | `Time (UTC)`, `Stage`, `Who`, `What happened`, `Records`, `Session` |
 | `calls/README.md` | (the first table) | `Date`, `Service`, `Purpose`, `Max calls`, `Max cost (USD)`, `Approved by` |
 | `calls/<service>-calls.csv` | (the first line) | `time_utc,call_id,purpose,model,request_id,status,latency_ms,input_tokens,output_tokens,cost_usd` |
+
+The `## Decisions` table can have four more columns after `Source`: `Time (UTC)`, `Topic`, `Impact` and `Replaces`. They are optional and the build reads them by name. A project can add them to an existing table. The new tables and files are optional too. A record of version 1.1.0 builds with no change.
 
 Rules for all tables:
 
@@ -151,6 +160,35 @@ A wrong `Evidence` cell: `"5 folds (Recommended)" (2026-10-19). Claude Code prop
 - In a cloud session, the session ID is the session URL.
 - If you cannot find the session ID, write `unknown`.
 
+### Optional columns
+
+| Column | Format |
+|---|---|
+| `Time (UTC)` | `HH:MM`, for example `14:30`. Get it with `date -u +%H:%M`. |
+| `Topic` | One row of `## Topics`. |
+| `Impact` | Free text. It says what the decision changes. |
+| `Replaces` | `D` IDs of earlier decisions, with commas between them. |
+
+- An empty cell or `-` means none.
+- A `Topic` column needs a `## Topics` table. The table can have no rows. Then every Topic cell must be empty or `-`.
+- `## Topics` has the columns `Topic` and `Meaning`.
+- A decision cannot replace itself or a later decision.
+- Errors:
+  - `a Topic column needs a ## Topics table.`
+  - `Time (UTC) "<value>" must look like 14:30.`
+  - `Topic "<value>" is not in ## Topics. Use one of: <topics>.`
+  - `Replaces "<value>" must be a decision ID like D3.`
+  - `unknown decision "<ID>".`
+  - `<ID> cannot replace a later decision <ID>.`
+
+### Checks
+
+- A decision with How `classified` shows "not checked by a person" until a person checks it.
+- To mark a check, add a row to the optional `## Checks` table. Its columns are `Decision`, `Checked by`, `Date`, `Note`.
+- `Decision` is a `D` ID or a ruling ID. `Checked by` is a person ID. `Date` is `YYYY-MM-DD`.
+- A row in `## Corrections` for the decision also counts as a check.
+- Error: `check names unknown decision "<ID>".`
+
 ### Corrections
 
 - A correction replaces one field on the website. The original row stays in the file.
@@ -190,6 +228,63 @@ A wrong `Evidence` cell: `"5 folds (Recommended)" (2026-10-19). Claude Code prop
 - Move them with `git mv` into `plans/`. Add the kind to the name: a spec becomes `-design.md`, a plan stays `-plan.md`.
 - Make decision rows from old transcripts only when the person asks.
 - Such a row has How `classified`. Its `Source` is the transcript ID, then `; not checked by a person`.
+
+## `project/releases.md`
+
+The file is optional. It has a `## Releases` table.
+
+| Column | Format |
+|---|---|
+| `Tag` | `v1.2.0` or `v1.2.0-rc.1`. Never use a tag two times. |
+| `Date` | `YYYY-MM-DD` or `YYYY-MM-DDTHH:MMZ`. |
+| `Commit` | 7 to 40 lower-case hex digits. |
+| `Summary` | One sentence. |
+| `Decisions` | `-`, one ID, a comma list, or a range like `D1 to D63`. A range gives the decisions in it that exist. |
+| `Results` | `-` or a comma list of result IDs (`H1, H2`). Each one must belong to this release in `results.md`. |
+
+Errors:
+
+- `Tag "<value>" must look like v1.2.3 or v1.2.3-rc.1.`
+- `duplicate tag "<value>".`
+- `Date "<value>" must look like 2026-10-19 or 2026-10-19T14:30Z.`
+- `Commit "<value>" must be 7 to 40 lower-case hex digits.`
+- `Decisions "<value>" must be "-", decision IDs, or a range like D1 to D63.`
+- `Decisions range "<value>" must go from a lower D number to a higher one.`
+- `unknown decision "<ID>".`
+- `unknown result "<ID>".`
+- `Results lists <ID>, but <ID> has no release.` (or `belongs to release <tag>.`)
+
+## `project/results.md`
+
+The file is optional. It has a `## Results` table.
+
+| Column | Format |
+|---|---|
+| `ID` | `H1`, `H2`, and so on. Never use an ID two times. |
+| `Release` | A tag of `releases.md`, or `-` if not released yet. |
+| `Result` | One sentence. |
+| `Value` | The value, as text. |
+| `Source` | A file path from the repository root, with an optional `#anchor`. Use `/` only. The file must exist. |
+| `Decisions` | `-` or a comma list of decision IDs. |
+| `Replaces` | `-` or earlier result IDs. |
+
+- A new result that replaces an old one names it in `Replaces`. Never edit the old row.
+- A result cannot replace itself or a later result.
+- Errors:
+  - `ID "<value>" must look like H1.`
+  - `duplicate result ID "<value>".`
+  - `Release "<value>" is not a tag in releases.md. Use "-" if not released yet.`
+  - `Source "<value>" is not a file in the repository.`
+  - `unknown decision "<ID>".`
+  - `unknown result "<ID>".`
+  - `<ID> cannot replace a later result <ID>.`
+
+## `project/contributions.md`
+
+- The file is optional. It is free text by the researchers.
+- It can start with an `| Item | Value |` table with the rows Status, Written by and Approved by.
+- The site shows it on the Contributions page and as a document page.
+- Claude Code can draft it. It is not complete until a researcher approves it.
 
 ## `project/process.md`
 
