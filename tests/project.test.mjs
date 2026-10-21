@@ -44,7 +44,7 @@ test("topics and checks come from the fixture", () => {
   const by = Object.fromEntries(m.decisions.map((d) => [d.id, d]));
   assert.equal(by.D1.checked, false);
   assert.equal(by.D2.checked, true);
-  assert.equal(by.D2.check.by, "Fiona Miller");
+  assert.deepEqual(by.D2.checks, [{ by: "Fiona Miller", byId: "fmm", date: "2026-10-06", note: "Checked against the call log." }]);
   assert.equal(by.D3.topic, "prompts");
   assert.deepEqual(by.D3.replaces, ["D1", "D2"]);
 });
@@ -267,4 +267,14 @@ test("documents carry milestone and size", () => {
   assert.equal(ledger.size, "2 tasks complete; 2 rulings");
   assert.equal(byPath["plans/2026-10-01-alpha-design.md"].milestone, null);
   assert.equal(byPath["plans/2026-10-01-alpha-design.md"].size, null);
+});
+
+test("documents keep Written by and Approved by of their Item/Value table (I5)", () => {
+  const byPath = Object.fromEntries(model().documents.map((d) => [d.path, d]));
+  const account = byPath["project/contributions.md"];
+  assert.equal(account.status, "Draft");
+  assert.equal(account.writtenBy, "Claude Code (draft)");
+  assert.equal(account.approvedBy, "-");
+  assert.equal(byPath["plans/2026-10-02-alpha-plan.md"].writtenBy, null);
+  assert.equal(byPath["plans/2026-10-02-alpha-plan.md"].approvedBy, null);
 });

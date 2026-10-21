@@ -27,12 +27,18 @@ function allFiles(dir) {
   });
 }
 
-test("templates build to a site", () => {
+const OPTIONAL = ["releases", "results", "contributions"];
+
+// Does what set-up step 4 does: copies templates/replication_materials/, the config and the
+// scripts. With optional, it also copies templates/optional/project/ as a project does later.
+function setUp({ optional = false } = {}) {
   const root = mkdtempSync(join(tmpdir(), "rm-templates-"));
   for (const f of allFiles(TEMPLATES)) {
     const rel = f.slice(TEMPLATES.length + 1).split(sep).join("/");
-    if (!/^(replication_materials|\.replication)\//.test(rel)) continue;
-    const dest = join(root, rel);
+    const to = /^(replication_materials|\.replication)\//.test(rel) ? rel
+      : optional && rel.startsWith("optional/project/") ? `replication_materials/${rel.slice("optional/".length)}` : null;
+    if (!to) continue;
+    const dest = join(root, to);
     mkdirSync(join(dest, ".."), { recursive: true });
     writeFileSync(dest, fill(readFileSync(f, "utf8")));
   }
@@ -40,20 +46,46 @@ test("templates build to a site", () => {
   const out = join(root, "_site");
   const r = spawnSync(process.execPath, [join(SKILL, "scripts/build-site.mjs"), "--root", root, "--out", out], { encoding: "utf8" });
   assert.equal(r.status, 0, r.stderr + r.stdout);
+  return out;
+}
+
+test("templates build to a site", () => {
+  const out = setUp();
   assert.match(readFileSync(join(out, "decisions/index.html"), "utf8"), /D1/);
   assert.match(readFileSync(join(out, "process/index.html"), "utf8"), /inputs/);
   const records = readFileSync(join(out, "records/index.html"), "utf8");
   assert.match(records, /docs\/README\/index\.html/);
   assert.match(records, /docs\/calls\/README\/index\.html/);
-  for (const page of ["releases", "results", "timeline", "contributions"]) {
+  for (const page of ["timeline", "contributions"]) {
     assert.ok(existsSync(join(out, page, "index.html")), page);
   }
   assert.match(readFileSync(join(out, "index.html"), "utf8"), /replication-materials 1\.2\.0/);
 });
 
+test("set-up does not copy the optional templates (M2)", () => {
+  for (const f of OPTIONAL) {
+    assert.ok(!existsSync(join(TEMPLATES, `replication_materials/project/${f}.md`)), `${f} is not a set-up template`);
+    assert.ok(existsSync(join(TEMPLATES, `optional/project/${f}.md`)), f);
+  }
+  const out = setUp();
+  for (const page of ["releases/index.html", "results/index.html", "docs/project/contributions/index.html"]) {
+    assert.ok(!existsSync(join(out, page)), page);
+  }
+});
+
+test("the optional templates parse and build (M2)", () => {
+  const out = setUp({ optional: true });
+  for (const page of ["releases/index.html", "results/index.html", "docs/project/contributions/index.html"]) {
+    assert.ok(existsSync(join(out, page)), page);
+  }
+  assert.match(readFileSync(join(out, "releases/index.html"), "utf8"), /No releases yet\./);
+  assert.match(readFileSync(join(out, "results/index.html"), "utf8"), /No results yet\./);
+  assert.match(readFileSync(join(out, "contributions/index.html"), "utf8"), /Status: draft\. Written by: -\. Approved by: -\./);
+});
+
 test("the new templates hold no fill-in marker and the new tables", () => {
-  for (const f of ["releases", "results", "contributions"]) {
-    assert.doesNotMatch(read(`replication_materials/project/${f}.md`), /\[[^\]]+\]([^(]|$)/, f);
+  for (const f of OPTIONAL) {
+    assert.doesNotMatch(read(`optional/project/${f}.md`), /\[[^\]]+\]([^(]|$)/, f);
   }
   const d = read("replication_materials/project/decisions.md");
   assert.match(d, /\| Source \| Time \(UTC\) \| Topic \| Impact \| Replaces \|/);

@@ -3,6 +3,8 @@
 | Item | Value |
 |------|-------|
 | Status | Draft |
+| Written by | Claude Code (draft) |
+| Approved by | - |
 | Owner | fmm |
 
 ## Account

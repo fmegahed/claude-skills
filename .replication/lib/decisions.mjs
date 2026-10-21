@@ -61,15 +61,28 @@ const given = (value) => {
 const TIME_OF_DAY = /^([01]\d|2[0-3]):[0-5]\d$/;
 const DECISION_ID = /^D(\d+)$/;
 
-// A classified decision is checked when a correction or a check names it.
-const isChecked = (d) => d.how !== "classified" || d.corrected !== null || d.check !== null;
+// claude, subagent and unknown are not people.
+const isPerson = (id) => !Object.hasOwn(BUILT_IN_PEOPLE, id);
+
+// A decision needs a check when its How is classified, in its row or after a correction.
+// Only a person removes the mark: with a check, or with a correction. A correction by a
+// built-in ID is valid, but it does not count.
+const isChecked = (d, needsCheck) => !needsCheck || d.checks.length > 0 || Boolean(d.corrected?.byIds.some(isPerson));
+// Before a correction or a check changes d.checked: does d need a check now?
+const needsCheck = (d) => !d.checked || d.how === "classified";
 
 export function readTopics(text, file) {
   const table = parseTables(text, file).find((t) => t.heading === "Topics");
   if (!table) return [];
-  return findTable([table], "Topics", TOPIC_COLUMNS, file).rows.map(({ cells: c }) => ({
-    topic: c.Topic, meaning: c.Meaning,
-  }));
+  const seen = new Set();
+  return findTable([table], "Topics", TOPIC_COLUMNS, file).rows.map(({ line, cells: c }) => {
+    if (given(c.Topic) === null) {
+      throw new RecordFormatError(file, line, "the Topic cell is empty. Write a topic or remove the row.");
+    }
+    if (seen.has(c.Topic)) throw new RecordFormatError(file, line, `duplicate topic "${c.Topic}".`);
+    seen.add(c.Topic);
+    return { topic: c.Topic, meaning: c.Meaning };
+  });
 }
 
 export function readChecksTable(text, file) {
@@ -112,9 +125,9 @@ export function readDecisions(text, file, people) {
       file,
       line,
       corrected: null,
-      check: null,
+      checks: [],
     };
-    d.checked = isChecked(d);
+    d.checked = isChecked(d, d.how === "classified");
     return d;
   });
   // Replaces points to earlier decisions only, so check it after all rows are read.
@@ -152,9 +165,11 @@ export function readRulings(text, ledgerPath) {
     if (inFence[i]) return;
     const r = line.match(RULING);
     if (!r) return;
+    // The same shape as a row of decisions.md (M12).
     rulings.push({
       id: `R-${date}-${topic}-${rulings.length + 1}`,
       date,
+      time: null,
       // Only the form "`Ruling: x`" wraps the line in backticks: then drop the closing one.
       text: (r[1] ? r[2].replace(/`\s*$/, "") : r[2]).trim(),
       proposedBy: ["claude"],
@@ -162,10 +177,13 @@ export function readRulings(text, ledgerPath) {
       how: "ruling",
       evidence: "",
       source: `${ledgerPath}:${i + 1}`,
+      topic: null,
+      impact: null,
+      replaces: [],
       file: ledgerPath,
       line: i + 1,
       corrected: null,
-      check: null,
+      checks: [],
       checked: true,
     });
   });
@@ -194,14 +212,16 @@ export function applyCorrections(decisions, table, people, file) {
     if (prop === "proposedBy" || prop === "decidedBy") d[prop] = personIds(value, people, file, line);
     else if (prop === "how") d.how = checkHow(value, file, line);
     else d[prop] = value;
-    const prev = d.corrected ?? { by: "", date: "", notes: [], fields: [] };
+    const prev = d.corrected ?? { by: "", byIds: [], date: "", notes: [], fields: [] };
+    // by and date are of the last row. byIds holds each checker ID, in row order.
     d.corrected = {
       by: people.get(checker).name,
+      byIds: prev.byIds.includes(checker) ? prev.byIds : [...prev.byIds, checker],
       date: c.Date,
       notes: c.Note ? [...prev.notes, c.Note] : prev.notes,
       fields: prev.fields.includes(c.Field) ? prev.fields : [...prev.fields, c.Field],
     };
-    d.checked = isChecked(d);
+    d.checked = isChecked(d, needsCheck(d));
   }
   return out;
 }
@@ -213,9 +233,14 @@ export function applyChecks(decisions, table, people, file) {
   for (const { line, cells: c } of table.rows) {
     const d = byId.get(c.Decision);
     if (!d) throw new RecordFormatError(file, line, `check names unknown decision "${c.Decision}".`);
-    const [checker] = personIds(c["Checked by"], people, file, line);
-    d.check = { by: people.get(checker).name, date: c.Date, note: c.Note };
-    d.checked = isChecked(d);
+    const ids = personIds(c["Checked by"], people, file, line);
+    const builtIn = ids.find((id) => !isPerson(id));
+    if (builtIn) {
+      throw new RecordFormatError(file, line,
+        `Checked by "${builtIn}" must be a person of ## People. Only a person can check a decision.`);
+    }
+    d.checks = [...d.checks, { by: people.get(ids[0]).name, byId: ids[0], date: c.Date, note: c.Note }];
+    d.checked = isChecked(d, needsCheck(d));
   }
   return out;
 }

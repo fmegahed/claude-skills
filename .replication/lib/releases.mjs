@@ -105,17 +105,25 @@ export function readResults(text, file, { root, releaseTags, decisionIds }) {
   return rows.sort((a, b) => num(a.id) - num(b.id));
 }
 
-// Each release must name results that exist in results.md.
-export function checkReleaseResults(releases, results, file) {
+// The two files must agree both ways: each result in the Results cell of a release
+// belongs to that release, and each result with a Release is in the Results cell of that release.
+export function checkReleaseResults(releases, results, releasesFile, resultsFile) {
   const byId = new Map(results.map((r) => [r.id, r]));
   for (const r of releases) {
     for (const id of r.resultIds) {
       const result = byId.get(id);
-      if (!result) throw new RecordFormatError(file, r.line, `unknown result "${id}".`);
+      if (!result) throw new RecordFormatError(releasesFile, r.line, `unknown result "${id}".`);
       if (result.release !== r.tag) {
         const owner = result.release === null ? "has no release" : `belongs to release ${result.release}`;
-        throw new RecordFormatError(file, r.line, `Results lists ${id}, but ${id} ${owner}.`);
+        throw new RecordFormatError(releasesFile, r.line, `Results lists ${id}, but ${id} ${owner}.`);
       }
+    }
+  }
+  const byTag = new Map(releases.map((r) => [r.tag, r]));
+  for (const result of results) {
+    if (result.release !== null && !byTag.get(result.release)?.resultIds.includes(result.id)) {
+      throw new RecordFormatError(resultsFile, result.line,
+        `${result.id} belongs to release ${result.release}, but that release does not list it.`);
     }
   }
 }

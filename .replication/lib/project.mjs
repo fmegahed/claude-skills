@@ -203,7 +203,7 @@ function readAllDecisions(base, people) {
   };
 }
 
-// Releases and results are optional. Results come first because releases refer to them.
+// Releases and results are optional. Releases come first because each result names the tag of its release.
 function readReleasesAndResults(root, base, decisionIds) {
   const [releasesFile, resultsFile] = ["project/releases.md", "project/results.md"];
   const read = (rel) => (existsSync(join(base, rel)) ? readFileSync(join(base, rel), "utf8") : null);
@@ -212,9 +212,10 @@ function readReleasesAndResults(root, base, decisionIds) {
   const releases = releasesText === null ? [] : readReleases(releasesText, releasesFile, decisionIds);
   const results = resultsText === null ? []
     : readResults(resultsText, resultsFile, { root, releaseTags: releases.map((r) => r.tag), decisionIds });
-  checkReleaseResults(releases, results, releasesFile);
+  checkReleaseResults(releases, results, releasesFile, resultsFile);
+  // Newest first. On the same date and time, the later row is the newer release: the file is append-only.
   const when = (r) => r.date + (r.time ?? "");
-  releases.sort((a, b) => (when(a) < when(b) ? 1 : when(a) > when(b) ? -1 : 0));
+  releases.sort((a, b) => (when(a) < when(b) ? 1 : when(a) > when(b) ? -1 : b.line - a.line));
   return { releases, results, files: { releases: releasesText !== null, results: resultsText !== null } };
 }
 
@@ -262,6 +263,7 @@ function readDocuments(base, milestones, decisions) {
     return {
       path, title: title ?? parts[parts.length - 1], kind,
       date: datedName.match(DATE_PREFIX)?.[1] ?? null, status: meta.Status ?? null, text,
+      writtenBy: meta["Written by"] ?? null, approvedBy: meta["Approved by"] ?? null,
       milestone, size: docSize(path, kind, text, decisions),
     };
   }).sort((a, b) => (a.date === b.date ? 0 : a.date === null ? 1 : b.date === null ? -1 : a.date < b.date ? -1 : 1)

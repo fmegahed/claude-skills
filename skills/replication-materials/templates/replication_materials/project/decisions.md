@@ -22,7 +22,7 @@ Each Topic in the Decisions table must be a row in this table. Add a row here be
 
 ## Checks
 
-When a person checks a classified decision and finds it right, add one row to this table. The decision then loses the note "not checked by a person".
+When a person checks a classified decision and finds it right, add one row to this table. Checked by is the ID of that person in ## People. The decision then loses the note "not checked by a person".
 
 | Decision | Checked by | Date | Note |
 |---|---|---|---|

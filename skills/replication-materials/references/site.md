@@ -4,16 +4,16 @@
 
 | Page | Content |
 |---|---|
-| Home | The project name and the lead paragraph of the record README. A "Now" section: the current milestone, the next milestone and the date. A strip of the milestones in order, with their states. Counts of decisions by each person, by Claude Code and by Unknown. Links to the repository and to the other pages. |
-| Records | A table of all documents in `replication_materials/`, in the order of the date in the file name. Columns: date, title, kind, status, milestone, size, links. Filter buttons by kind. Each title links to its document page. |
-| Decisions | All decisions: the rows of `decisions.md` and the `Ruling:` lines of the ledgers. Columns: ID, date, decision, proposed by, decided by, how, evidence, source document. The optional columns add the time, the topic, the impact and the decisions replaced. A classified decision without a check shows "not checked by a person". Filter buttons by "decided by" and by "how". A corrected record shows the new values and "Corrected by {name}, {date}". |
+| Home | The project name and the lead paragraph of the record README. A "Now" section: the latest release (tag and date), the milestone in progress and the open items. A "Status" line: the current milestone, the next milestone and the date of the build. A strip of the milestones in order, with their states. Counts of decisions by each decider: each person, Claude Code, Subagent and Unknown. Links to the other pages and to the repository. |
+| Records | A table of all documents in `replication_materials/`, in the order of the date in the file name. The columns, in this order: Date, Title, Kind, Milestone, Size, Status, Links. Size gives the tasks of a plan, or the tasks complete and the rulings of a ledger. Links has "Page" (the document page) and "GitHub" (the file on GitHub). Filter buttons by kind. Each title links to its document page. |
+| Decisions | All decisions: the rows of `decisions.md` and the `Ruling:` lines of the ledgers. Columns: ID, date (with the time when it is given), decision, proposed by, decided by, how, evidence, source. Notes under the text of a decision: "Corrected by {name}, {date}." (the page shows the new values), "Checked by {name}, {date}." for each check, the impact, the decisions that it replaces, and "Not checked by a person." for a classified decision that no person checked or corrected. Filter buttons by "decided by", by "how" and, when `## Topics` exists, by topic. With topics, a "Who decided, by topic" grid. A "Decisions over time" chart: one bar for each day, or for each hour when all decisions have one date. The grid and the chart do not count the rulings. |
 | Progress | The milestones with their states and plans. The open items and blockers from `roadmap.md`. For each plan with a ledger: the tasks complete out of the tasks in the plan. A plan without a ledger shows `-`. A table of paid calls. |
-| Contributions | The text of `project/contributions.md` and its Item/Value table (Status, Written by, Approved by). |
-| Timeline | The decisions, the releases and the results in one order of time. |
+| Contributions | In this order: a link to the account of the researchers (`project/contributions.md`) with its Status, Written by and Approved by; the count of decisions not checked by a person; a grid of "Proposed by" against "Decided by", without the rulings (a note gives their count); the decisions that the researchers proposed, with the evidence; the proposals of Claude Code that a researcher decided; the replaced decisions; the corrections and the checks. |
+| Timeline | A bar for each stage of `process.md`, from its first event to its last event. Then a section for each date, newest first, with the process events, the tags and the decisions with their text. One line for each date counts the rulings and the decisions that only Claude Code or a subagent decided. A decision with no person among its deciders, for example `unknown`, shows with its text and its deciders. The page does not show the results. It does not show the milestones, because they have no dates: a note links to Progress. |
 | Releases | One row for each release in `releases.md`, with its decisions and results. Only when `releases.md` exists. |
 | Results | One row for each result in `results.md`, with its release, source and decisions. A replaced result shows the result that replaces it. Only when `results.md` exists. |
 | Process | The events of `process.md` by date, and a second view grouped by stage. |
-| Document pages | One page for each markdown file in `plans/`, `findings/`, `probes/` and `calls/`, and for the record README. |
+| Document pages | One page for each markdown file in `plans/`, `findings/`, `probes/` and `calls/`, for the record README, and for `project/contributions.md`. |
 | Extra pages | The files in `pages` of `.replication/site.config.json`, for example a rendered analysis. Each file is copied as it is to `pages/<file name>`. The navigation and the Home page link to each one. |
 
 The navigation order is: Home, Records, Decisions, Contributions, Timeline, Releases, Results, Progress, Process, extra pages, Repository.
@@ -88,6 +88,7 @@ The footer of each page says "Built from commit {sha} on {date}." It links to th
 - The page has a 16 px side gutter. The text stays usable at 200% zoom (1.4.4).
 - A wide table scrolls inside its own box. The box can get keyboard focus (`tabindex="0"` with a label).
 - Each filter button, navigation link and table link has a target of at least 24 × 24 CSS px (2.5.8).
+- A short link such as "Page", "GitHub" or "Files at this tag" has an accessible name that starts with its text and names its target, for example "Page: Alpha plan" (2.5.3).
 - A sticky header or rail never hides a focused element (2.4.11). The page uses `scroll-padding-top`. The header is not sticky on small screens.
 - The focus ring is 3 px Miami Red with an offset (2.4.7).
 - Filter buttons are `<button>` elements with `aria-pressed`. The count of shown rows is in a polite live region (4.1.2, 4.1.3).

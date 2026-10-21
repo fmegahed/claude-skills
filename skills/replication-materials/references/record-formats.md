@@ -27,6 +27,8 @@ replication_materials/
 .github/workflows/replication-site.yml
 ```
 
+Set-up does not make the three optional files. Their templates are in `<skill>/templates/optional/project/`. Copy each one when you first need it.
+
 ## Allowed values
 
 Use these values exactly. The build stops on any other value.
@@ -36,7 +38,8 @@ Use these values exactly. The build stops on any other value.
 | How | `project/decisions.md` | `chat`, `question`, `review`, `measurement`, `plan-approval`, `playback`, `ruling`, `classified` |
 | Stage | `project/process.md` | `inputs`, `brainstorm`, `spec-review`, `plan`, `build`, `evaluate`, `paper` |
 | State | `project/roadmap.md` | `done`, `now`, `next`, `planned`, `blocked` |
-| Proposed by, Decided by, Checked by | `project/decisions.md` | an ID from `## People` in `roadmap.md`, or `claude`, `subagent`, `unknown` |
+| Proposed by, Decided by; Checked by of `## Corrections` | `project/decisions.md` | an ID from `## People` in `roadmap.md`, or `claude`, `subagent`, `unknown` |
+| Checked by of `## Checks` | `project/decisions.md` | an ID from `## People` only. Only a person can check a decision. |
 | Field (corrections) | `project/decisions.md` | `Decision`, `Proposed by`, `Decided by`, `How`, `Evidence` |
 | Document kind | `plans/`, `findings/` | `design`, `plan`, `ledger`, `investigation`, `review`, `findings` |
 
@@ -61,7 +64,7 @@ Keep each header and its column order exactly.
 | `calls/README.md` | (the first table) | `Date`, `Service`, `Purpose`, `Max calls`, `Max cost (USD)`, `Approved by` |
 | `calls/<service>-calls.csv` | (the first line) | `time_utc,call_id,purpose,model,request_id,status,latency_ms,input_tokens,output_tokens,cost_usd` |
 
-The `## Decisions` table can have four more columns after `Source`: `Time (UTC)`, `Topic`, `Impact` and `Replaces`. They are optional and the build reads them by name. A project can add them to an existing table. The new tables and files are optional too. A record of version 1.1.0 builds with no change.
+The `## Decisions` table can have four more columns after `Source`: `Time (UTC)`, `Topic`, `Impact` and `Replaces`. They are optional and the build reads them by name. A project can add them to an existing table. Then each existing row needs a cell for each new column: empty or `-`. The new tables and files are optional too. A record of version 1.1.0 builds with no change.
 
 Rules for all tables:
 
@@ -75,7 +78,7 @@ Rules for all tables:
 - Name each document `plans/YYYY-MM-DD-<topic>-<kind>.md` or `findings/YYYY-MM-DD-<topic>-findings.md`.
 - A superpowers spec is a `design`. A superpowers plan is a `plan`. Both go to `plans/`, not to `docs/superpowers/`.
 - Start each document with a table `| Item | Value |`. It has at least the rows Status, Version (with its date) and Written by.
-- The Records page lists `README.md`, `plans/*.md`, `findings/*.md`, `probes/<topic>/README.md` and `calls/README.md`. It sorts them by the date in the name.
+- The Records page lists `README.md`, `plans/*.md`, `findings/*.md`, `probes/<topic>/README.md`, `calls/README.md` and `project/contributions.md`. It sorts them by the date in the name.
 - Write a fill-in marker as `[...]`, not with angle brackets. The website removes `<word ...>` outside a code span.
 
 ## `project/roadmap.md`
@@ -170,11 +173,14 @@ A wrong `Evidence` cell: `"5 folds (Recommended)" (2026-10-19). Claude Code prop
 | `Replaces` | `D` IDs of earlier decisions, with commas between them. |
 
 - An empty cell or `-` means none.
+- When you add an optional column to an existing table, add a cell to every existing row. Write the cell empty or `-`. Else the build stops: the row has fewer cells than the header.
 - A `Topic` column needs a `## Topics` table. The table can have no rows. Then every Topic cell must be empty or `-`.
-- `## Topics` has the columns `Topic` and `Meaning`.
+- `## Topics` has the columns `Topic` and `Meaning`. Each row has a Topic that is not empty and not `-`. Never use a Topic two times.
 - A decision cannot replace itself or a later decision.
 - Errors:
   - `a Topic column needs a ## Topics table.`
+  - `the Topic cell is empty. Write a topic or remove the row.` (in `## Topics`)
+  - `duplicate topic "<value>".` (in `## Topics`)
   - `Time (UTC) "<value>" must look like 14:30.`
   - `Topic "<value>" is not in ## Topics. Use one of: <topics>.`
   - `Replaces "<value>" must be a decision ID like D3.`
@@ -185,9 +191,15 @@ A wrong `Evidence` cell: `"5 folds (Recommended)" (2026-10-19). Claude Code prop
 
 - A decision with How `classified` shows "not checked by a person" until a person checks it.
 - To mark a check, add a row to the optional `## Checks` table. Its columns are `Decision`, `Checked by`, `Date`, `Note`.
-- `Decision` is a `D` ID or a ruling ID. `Checked by` is a person ID. `Date` is `YYYY-MM-DD`.
-- A row in `## Corrections` for the decision also counts as a check.
-- Error: `check names unknown decision "<ID>".`
+- `Decision` is a `D` ID or a ruling ID. `Checked by` is an ID from `## People`. `Date` is `YYYY-MM-DD`.
+- Only a person can check a decision. The build stops on `claude`, `subagent` or `unknown` in `Checked by`.
+- A decision can have more than one check. The Decisions page shows "Checked by {name}, {date}." for each one.
+- A row in `## Corrections` for the decision also counts as a check when its `Checked by` is an ID from `## People`.
+- A correction by `claude`, `subagent` or `unknown` is valid, but the decision keeps the mark. This is also true when that correction changes How.
+- Errors:
+  - `check names unknown decision "<ID>".`
+  - `unknown person "<ID>". Known IDs: <IDs>.`
+  - `Checked by "<ID>" must be a person of ## People. Only a person can check a decision.`
 
 ### Corrections
 
@@ -197,6 +209,7 @@ A wrong `Evidence` cell: `"5 folds (Recommended)" (2026-10-19). Claude Code prop
 - `Field` is `Decision`, `Proposed by`, `Decided by`, `How` or `Evidence`.
 - `New value` follows the format of that field. For `Proposed by` and `Decided by`, it is person IDs. For `How`, it is an allowed value.
 - `Checked by` is the ID of the person who checked the record. Claude Code can write the row for that person.
+- `Checked by` can be `claude`, `subagent` or `unknown`. Then the correction is valid, but it is not a check by a person (see Checks).
 - The website shows the new values and "Corrected by {name}, {date}".
 
 ### Rulings
@@ -227,7 +240,9 @@ A wrong `Evidence` cell: `"5 folds (Recommended)" (2026-10-19). Claude Code prop
 - Ask the person before you move files from `docs/superpowers/specs/` and `docs/superpowers/plans/`.
 - Move them with `git mv` into `plans/`. Add the kind to the name: a spec becomes `-design.md`, a plan stays `-plan.md`.
 - Make decision rows from old transcripts only when the person asks.
-- Such a row has How `classified`. Its `Source` is the transcript ID, then `; not checked by a person`.
+- Such a row has How `classified`. Its `Source` is the transcript ID.
+- From version 1.2.0, How `classified` alone gives the mark "not checked by a person" on the website. A new row needs no suffix in `Source`.
+- An old row can have the suffix `; not checked by a person` in `Source`. Keep it as it is written.
 
 ## `project/releases.md`
 
@@ -241,6 +256,10 @@ The file is optional. It has a `## Releases` table.
 | `Summary` | One sentence. |
 | `Decisions` | `-`, one ID, a comma list, or a range like `D1 to D63`. A range gives the decisions in it that exist. |
 | `Results` | `-` or a comma list of result IDs (`H1, H2`). Each one must belong to this release in `results.md`. |
+
+- The file is append-only. Add a row at each tag, at the end of the table.
+- The Releases page shows the newest release first. Two releases on the same date, with the same time or with no time, keep the order of the rows: the later row is the newer release.
+- At the tag, set the Release cell of each unreleased result in `results.md` that the release contains to the tag (see `project/results.md`).
 
 Errors:
 
@@ -265,25 +284,33 @@ The file is optional. It has a `## Results` table.
 | `Result` | One sentence. |
 | `Value` | The value, as text. |
 | `Source` | A file path from the repository root, with an optional `#anchor`. Use `/` only. The file must exist. |
-| `Decisions` | `-` or a comma list of decision IDs. |
+| `Decisions` | `-`, one ID, a comma list, or a range like `D1 to D63`, as in `releases.md`. A range gives the decisions in it that exist. |
 | `Replaces` | `-` or earlier result IDs. |
 
-- A new result that replaces an old one names it in `Replaces`. Never edit the old row.
+- Write a new result with Release `-`.
+- At the tag, set the Release cell of each unreleased result (Release `-`) that the release contains to the tag. This is the only edit allowed on an old row.
+- The two files must agree both ways:
+  - Each result in the `Results` cell of a release has that tag in `Release`.
+  - Each result with a tag in `Release` is in the `Results` cell of that release.
+- A new result that replaces an old one names it in `Replaces`. Do not edit the old row.
 - A result cannot replace itself or a later result.
 - Errors:
   - `ID "<value>" must look like H1.`
   - `duplicate result ID "<value>".`
   - `Release "<value>" is not a tag in releases.md. Use "-" if not released yet.`
   - `Source "<value>" is not a file in the repository.`
+  - `Decisions "<value>" must be "-", decision IDs, or a range like D1 to D63.`
+  - `Decisions range "<value>" must go from a lower D number to a higher one.`
   - `unknown decision "<ID>".`
   - `unknown result "<ID>".`
   - `<ID> cannot replace a later result <ID>.`
+  - `<ID> belongs to release <tag>, but that release does not list it.`
 
 ## `project/contributions.md`
 
 - The file is optional. It is free text by the researchers.
 - It can start with an `| Item | Value |` table with the rows Status, Written by and Approved by.
-- The site shows it on the Contributions page and as a document page.
+- The site shows it as a document page. The Contributions page links to it and shows the three values, for example "Status: draft. Written by: Claude Code (draft). Approved by: -.". A missing row shows `-`.
 - Claude Code can draft it. It is not complete until a researcher approves it.
 
 ## `project/process.md`

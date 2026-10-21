@@ -85,18 +85,38 @@ test("a release Results cell must name results that exist", () => {
   const releases = readReleases(rel(["v1.0.0", "2026-10-05", "abc1234", "T.", "-", "H1, H5"]), "project/releases.md", IDS);
   const results = readResults(res(["H1", "v1.0.0", "Mean", "1.5", "data/summary.csv", "-", "-"]), "project/results.md", opts);
   assert.deepEqual(releases[0].resultIds, ["H1", "H5"]);
-  assert.throws(() => checkReleaseResults(releases, results, "project/releases.md"),
+  assert.throws(() => checkReleaseResults(releases, results, "project/releases.md", "project/results.md"),
     /project\/releases\.md:5: unknown result "H5"/);
 });
 
 test("a release lists only results that belong to it", () => {
   const releases = readReleases(rel(["v1.0.0", "2026-10-05", "abc1234", "T.", "-", "H1"]), "project/releases.md", IDS);
   const other = readResults(res(["H1", "v2.0.0", "Mean", "1", "data/summary.csv", "-", "-"]), "f", { ...opts, releaseTags: ["v1.0.0", "v2.0.0"] });
-  assert.throws(() => checkReleaseResults(releases, other, "project/releases.md"),
+  assert.throws(() => checkReleaseResults(releases, other, "project/releases.md", "project/results.md"),
     /project\/releases\.md:5: Results lists H1, but H1 belongs to release v2\.0\.0\./);
   const none = readResults(res(okRes), "f", opts);
-  assert.throws(() => checkReleaseResults(releases, none, "project/releases.md"),
+  assert.throws(() => checkReleaseResults(releases, none, "project/releases.md", "project/results.md"),
     /project\/releases\.md:5: Results lists H1, but H1 has no release\./);
+});
+
+test("a result of a release must be in the Results cell of that release (I6)", () => {
+  const results = readResults(res(okRes, ["H2", "v1.0.0", "Mean", "1.5", "data/summary.csv", "-", "-"]), "project/results.md", opts);
+  const silent = readReleases(rel(["v1.0.0", "2026-10-05", "abc1234", "T.", "-", "-"]), "project/releases.md", IDS);
+  assert.throws(() => checkReleaseResults(silent, results, "project/releases.md", "project/results.md"),
+    (e) => e.name === "RecordFormatError"
+      && e.message === "project/results.md:6: H2 belongs to release v1.0.0, but that release does not list it.");
+  const listed = readReleases(rel(["v1.0.0", "2026-10-05", "abc1234", "T.", "-", "H2"]), "project/releases.md", IDS);
+  assert.doesNotThrow(() => checkReleaseResults(listed, results, "project/releases.md", "project/results.md"));
+});
+
+test("the build reports a released result that its release does not list (I6)", () => {
+  const dir = tempCopy();
+  try {
+    const p = join(dir, "replication_materials/project/releases.md");
+    writeFileSync(p, readFileSync(p, "utf8").replace("| D1 to D3 | H2 |", "| D1 to D3 | - |"));
+    assert.throws(() => loadProject(dir, OPTS),
+      /^RecordFormatError: project\/results\.md:8: H2 belongs to release v0\.2\.0, but that release does not list it\.$/);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
 function tempCopy() {

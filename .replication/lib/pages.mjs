@@ -130,11 +130,13 @@ ${pageLinks}
 export function renderRecords(model) {
   const path = "records/index.html";
   const kinds = [...new Set(model.documents.map((d) => d.kind))];
+  // The name of a short link holds its visible text and the title (WCAG 2.5.3).
   const rows = model.documents.map((d) => tr([
     escapeHtml(d.date ?? "-"),
     `<a href="${escapeHtml(rel(path, docPath(d.path)))}">${escapeHtml(d.title)}</a>`,
     escapeHtml(d.kind), escapeHtml(d.milestone ?? "-"), escapeHtml(d.size ?? "-"), escapeHtml(d.status ?? "-"),
-    `<a href="${escapeHtml(rel(path, docPath(d.path)))}">Page</a> <a href="${escapeHtml(`${model.config.repository}/blob/main/replication_materials/${d.path}`)}">GitHub</a>`,
+    `<a href="${escapeHtml(rel(path, docPath(d.path)))}" aria-label="${escapeHtml(`Page: ${d.title}`)}">Page</a> `
+      + `<a href="${escapeHtml(`${model.config.repository}/blob/main/replication_materials/${d.path}`)}" aria-label="${escapeHtml(`GitHub: ${d.title}`)}">GitHub</a>`,
   ], ` data-row data-kind="${escapeHtml(d.kind)}"`));
   const content = model.documents.length
     ? filterBar([{ key: "kind", label: "Kind", options: kinds.map((k) => ({ value: k, label: k })) }], model.documents.length)
@@ -145,7 +147,8 @@ export function renderRecords(model) {
 
 const PERSON_NONE = new Set(["claude", "subagent", "unknown"]);
 const isPerson = (id) => !PERSON_NONE.has(id);
-const isPersonDecision = (d) => d.decidedBy.some(isPerson);
+// The Timeline counts a decision only when Claude Code or a subagent alone decided it.
+const isClaudeDecision = (d) => d.decidedBy.every((id) => id === "claude" || id === "subagent");
 const pct = (n) => `${Math.round(n * 100) / 100}%`;
 const when = (d) => (d.time ? `${d.date} ${d.time}` : d.date);
 const note = (text) => `<br><span class="note">${text}</span>`;
@@ -191,12 +194,13 @@ export function renderDecisions(model) {
   const hows = [...new Set(model.decisions.map((d) => d.how))];
   const topics = topicList(model);
   const rows = model.decisions.map((d) => {
-    const fix = d.corrected
+    const fix = (d.corrected
       ? note(`Corrected by ${escapeHtml(d.corrected.by)}, ${escapeHtml(d.corrected.date)}.${
         d.corrected.notes.length ? ` ${escapeHtml(d.corrected.notes.join(" "))}` : ""}`)
-      : "";
+      : "")
+      + d.checks.map((c) => note(`Checked by ${escapeHtml(c.by)}, ${escapeHtml(c.date)}.`)).join("");
     const detail = (d.impact ? note(`Impact: ${escapeHtml(d.impact)}`) : "")
-      + ((d.replaces ?? []).length ? note(`Replaces ${escapeHtml(d.replaces.join(", "))}.`) : "")
+      + (d.replaces.length ? note(`Replaces ${escapeHtml(d.replaces.join(", "))}.`) : "")
       + (d.checked ? "" : note("Not checked by a person."));
     return tr([
       escapeHtml(d.id), escapeHtml(when(d)), inline(d.text) + fix + detail,
@@ -219,7 +223,7 @@ export function renderDecisions(model) {
       const cols = [...new Set(own.flatMap((d) => d.decidedBy))];
       const keys = [...topics, ...(own.some((d) => !d.topic) ? [null] : [])];
       const trows = keys.map((t) => {
-        const set = own.filter((d) => (d.topic ?? null) === t);
+        const set = own.filter((d) => d.topic === t);
         return { label: t ?? "No topic", cells: [...cols.map((c) => set.filter((d) => d.decidedBy.includes(c)).length), set.length] };
       });
       content += `\n<h2>Who decided, by topic</h2>\n${grid("Who decided, by topic", "Topic", [...cols.map((c) => personName(model, c)), "Total"], trows)}`;
@@ -241,14 +245,17 @@ export function renderContributions(model) {
   const rulings = all.length - own.length;
   const unchecked = all.filter((d) => !d.checked).length;
   const account = model.documents.find((d) => d.path === "project/contributions.md");
+  // A value of the Item/Value table, or "-". One end period goes, so that the sentence ends once.
+  const item = (v) => escapeHtml((v ?? "-").replace(/\.$/, "") || "-");
   let body = "<h1>Contributions</h1>\n<h2>Account of the researchers</h2>\n";
   body += account
-    ? `<p><a href="${escapeHtml(rel(path, docPath(account.path)))}">${escapeHtml(account.title)}</a>${account.status ? ` · Status: ${escapeHtml(account.status)}` : ""}</p>`
+    ? `<p><a href="${escapeHtml(rel(path, docPath(account.path)))}">${escapeHtml(account.title)}</a></p>
+<p>Status: ${item(account.status)}. Written by: ${item(account.writtenBy)}. Approved by: ${item(account.approvedBy)}.</p>`
     : "<p>The researchers have not written their account yet.</p>";
   if (!all.length) return shell(model, path, "Contributions", `${body}\n<p>No decisions yet.</p>`);
 
   body += `\n<p>${unchecked === 0 ? "A person checked every decision."
-    : `${unchecked} ${unchecked === 1 ? "decision is" : "decisions are"} not checked by a person. The Decisions page lists them.`}</p>\n`;
+    : `${unchecked} ${unchecked === 1 ? "decision is" : "decisions are"} not checked by a person. The Decisions page marks each of them.`}</p>\n`;
 
   const side = (key) => [...new Set(own.flatMap((d) => d[key]))];
   const rowIds = side("proposedBy");
@@ -271,13 +278,13 @@ ${rulings ? `<p class="note">${rulings} ${rulings === 1 ? "ruling" : "rulings"} 
 <h2>Proposed by Claude Code and decided by a researcher</h2>\n${list("Decisions proposed by Claude Code and decided by a researcher", aiThenPerson)}
 `;
 
-  const pairs = all.flatMap((d) => (d.replaces ?? []).map((old) => `<li>${escapeHtml(old)} → replaced by ${escapeHtml(d.id)}</li>`));
+  const pairs = all.flatMap((d) => d.replaces.map((old) => `<li>${escapeHtml(old)} → replaced by ${escapeHtml(d.id)}</li>`));
   body += `<h2>Replaced decisions</h2>\n${pairs.length ? `<ul>\n${pairs.join("\n")}\n</ul>` : "<p>No decision is replaced.</p>"}\n`;
 
   const fixes = all.flatMap((d) => [
     ...(d.corrected ? [tr([escapeHtml(d.id), "Correction", escapeHtml(d.corrected.by), escapeHtml(d.corrected.date),
       escapeHtml([d.corrected.fields.join(", "), d.corrected.notes.join(" ")].filter(Boolean).join(": ") || "-")])] : []),
-    ...(d.check ? [tr([escapeHtml(d.id), "Check", escapeHtml(d.check.by), escapeHtml(d.check.date), escapeHtml(d.check.note || "-")])] : []),
+    ...d.checks.map((c) => tr([escapeHtml(d.id), "Check", escapeHtml(c.by), escapeHtml(c.date), escapeHtml(c.note || "-")])),
   ]);
   body += `<h2>Corrections and checks by the researchers</h2>\n${fixes.length
     ? table("Corrections and checks", ["Decision", "Kind", "By", "Date", "Detail"], fixes) : "<p>No corrections or checks yet.</p>"}`;
@@ -285,7 +292,9 @@ ${rulings ? `<p class="note">${rulings} ${rulings === 1 ? "ruling" : "rulings"} 
 }
 
 const repoUrl = (model) => model.config.repository.replace(/\/$/, "");
-const extLink = (href, label) => `<a href="${escapeHtml(href)}">${escapeHtml(label)}</a>`;
+// name: an accessible name that starts with the label, for a link whose label alone is too short.
+const extLink = (href, label, name) =>
+  `<a href="${escapeHtml(href)}"${name ? ` aria-label="${escapeHtml(name)}"` : ""}>${escapeHtml(label)}</a>`;
 
 export function renderReleases(model) {
   const path = "releases/index.html";
@@ -294,7 +303,8 @@ export function renderReleases(model) {
   const resultById = new Map(model.results.map((r) => [r.id, r]));
   const parts = model.releases.map((r, i) => {
     const older = model.releases[i + 1];
-    const links = [extLink(`${repo}/tree/${r.tag}`, "Files at this tag"), extLink(`${repo}/commit/${r.commit}`, `Commit ${r.commit.slice(0, 7)}`)];
+    const links = [extLink(`${repo}/tree/${r.tag}`, "Files at this tag", `Files at this tag: ${r.tag}`),
+      extLink(`${repo}/commit/${r.commit}`, `Commit ${r.commit.slice(0, 7)}`)];
     if (older) links.push(extLink(`${repo}/compare/${older.tag}...${r.tag}`, `Changes since ${older.tag}`));
     const dRows = r.decisionIds.map((id) => byId.get(id)).filter(Boolean)
       .map((d) => tr([escapeHtml(d.id), inline(d.text), escapeHtml(names(model, d.proposedBy)), escapeHtml(names(model, d.decidedBy))]));
@@ -323,8 +333,8 @@ export function renderResults(model) {
   const status = (r) => (replacedBy.has(r.id) ? `Replaced by ${replacedBy.get(r.id).join(", ")}` : "Current");
   const releases = [...new Set(model.results.map((r) => r.release).filter(Boolean))];
   const hasUnreleased = model.results.some((r) => !r.release);
-  const source = (r) => (!r.source || r.source === "-" ? "-"
-    : extLink(`${repo}/blob/${r.release ?? "main"}/${r.source}`, r.source));
+  // readResults requires Source to be a file, so each result has one.
+  const source = (r) => extLink(`${repo}/blob/${r.release ?? "main"}/${r.source}`, r.source);
   const rows = model.results.map((r) => tr([
     escapeHtml(r.id), escapeHtml(r.release ?? "-"), inline(r.result), escapeHtml(r.value), source(r),
     escapeHtml(r.decisionIds.join(", ") || "-"), escapeHtml(status(r)),
@@ -374,10 +384,13 @@ export function renderTimeline(model) {
   const counts = new Map();
   const idNum = (id) => Number(id.replace(/\D+/g, "")) || 0;
   for (const d of model.decisions) {
-    if (isPersonDecision(d)) {
+    if (isClaudeDecision(d)) counts.set(d.date, (counts.get(d.date) ?? 0) + 1);
+    else {
+      // With no person among the deciders (for example "unknown"), the item names the deciders.
+      const who = d.decidedBy.some(isPerson) ? "" : ` <span class="note">Decided by ${escapeHtml(names(model, d.decidedBy))}.</span>`;
       items.push({ date: d.date, time: d.time, order: idNum(d.id),
-        html: `<strong>${escapeHtml(d.id)}</strong>${d.time ? ` ${escapeHtml(d.time)}` : ""}: ${inline(d.text)}` });
-    } else counts.set(d.date, (counts.get(d.date) ?? 0) + 1);
+        html: `<strong>${escapeHtml(d.id)}</strong>${d.time ? ` ${escapeHtml(d.time)}` : ""}: ${inline(d.text)}${who}` });
+    }
   }
   for (const r of model.releases) {
     items.push({ date: r.date, time: r.time, order: 1e9,
@@ -385,9 +398,12 @@ export function renderTimeline(model) {
   }
   const dates = [...new Set([...items.map((i) => i.date), ...counts.keys()])].sort().reverse();
   const stages = STAGES.filter((s) => model.events.some((e) => e.stage === s));
-  if (!dates.length) return shell(model, path, "Timeline", "<h1>Timeline</h1>\n<p>No events yet.</p>");
+  const head = `<h1>Timeline</h1>
+<p class="note">Milestones are not on this page because they have no dates. See <a href="${escapeHtml(rel(path, "progress/index.html"))}">Progress</a>.</p>
+`;
+  if (!dates.length) return shell(model, path, "Timeline", `${head}<p>No events yet.</p>`);
 
-  let body = "<h1>Timeline</h1>\n";
+  let body = head;
   if (stages.length) {
     const ms = (t) => Date.parse(t);
     const first = Math.min(...model.events.map((e) => ms(e.time)));

@@ -150,7 +150,7 @@ test("an extra page title is escaped", () => {
 });
 
 // Releases and Results pages
-import { cpSync, mkdtempSync, rmSync } from "node:fs";
+import { cpSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 const REPO = "https://github.com/example/fixture";
@@ -165,6 +165,25 @@ test("releases page lists releases newest first with links", () => {
   assert.ok(html.includes(`href="${REPO}/compare/v0.1.0...v0.2.0"`));
   assert.ok(!html.includes("compare/v0.1.0...v0.1.0") && !html.includes("/compare/undefined"));
   assert.equal(html.match(/\/compare\//g).length, 1);
+});
+
+test("two releases on one date with no time: the later row is the newer release (I4)", () => {
+  const dir = mkdtempSync(join(tmpdir(), "rm-tie-"));
+  try {
+    cpSync("tests/fixtures/full", dir, { recursive: true });
+    writeFileSync(join(dir, "replication_materials/project/releases.md"), `## Releases
+
+| Tag | Date | Commit | Summary | Decisions | Results |
+|---|---|---|---|---|---|
+| v0.1.0 | 2026-10-05 | abc1234 | First. | - | H1 |
+| v0.2.0 | 2026-10-12 | abc1235 | Second. | - | H2 |
+| v0.2.1 | 2026-10-12 | abc1236 | Third. | - | - |
+`);
+    const m = loadProject(dir, OPTS);
+    assert.deepEqual(m.releases.map((r) => r.tag), ["v0.2.1", "v0.2.0", "v0.1.0"]);
+    const html = renderSite(m).get("releases/index.html");
+    assert.deepEqual([...html.matchAll(/\/compare\/([^"]+)"/g)].map((x) => x[1]), ["v0.2.0...v0.2.1", "v0.1.0...v0.2.0"]);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
 test("releases page tables hold decisions and results of each release", () => {
@@ -262,6 +281,23 @@ test("timeline stage table has bars that are hidden from assistive tech", () => 
   }
 });
 
+test("timeline lists a decision decided by unknown and leaves it out of the Claude Code count (I3)", () => {
+  const m = model();
+  m.decisions.push({ ...m.decisions[1], id: "D9", text: "Pick the unknown path", proposedBy: ["claude"], decidedBy: ["unknown"] });
+  const d = day(renderSite(m).get("timeline/index.html"), "2026-10-02");
+  assert.ok(d.includes("<strong>D9</strong>: Pick the unknown path"), d);
+  assert.ok(d.includes('<span class="note">Decided by Unknown.</span>'), d);
+  assert.match(d, />1 decision or ruling by Claude Code</);
+  assert.ok(!day(site().get("timeline/index.html"), "2026-10-01").includes("Decided by"), "a person decision has no decider note");
+});
+
+test("timeline says where the milestones are (M11)", () => {
+  const NOTE = '<h1>Timeline</h1>\n<p class="note">Milestones are not on this page because they have no dates. '
+    + 'See <a href="../progress/index.html">Progress</a>.</p>';
+  assert.ok(site().get("timeline/index.html").includes(NOTE));
+  assert.ok(renderSite({ ...model(), events: [], decisions: [], releases: [] }).get("timeline/index.html").includes(NOTE));
+});
+
 test("timeline empty state and escaping", () => {
   const empty = renderSite({ ...model(), events: [], decisions: [], releases: [] }).get("timeline/index.html");
   assert.ok(empty.includes("No events yet."));
@@ -311,13 +347,28 @@ test("contributions page shows replaced pairs, corrections and checks", () => {
   assert.match(part, /Fiona Miller/);
 });
 
+test("contributions page lists each check of a decision (M1)", () => {
+  const m = model();
+  m.decisions[1].checks.push({ by: "Alex Avila", byId: "aav", date: "2026-10-07", note: "Second look." });
+  const part = section(renderSite(m).get("contributions/index.html"), "Corrections and checks by the researchers");
+  assert.equal(part.match(/<td>Check<\/td>/g).length, 2);
+  assert.ok(part.indexOf("Checked against the call log.") < part.indexOf("Second look."));
+});
+
+test("contributions page shows the status and the authorship of the account (I5)", () => {
+  assert.ok(site().get("contributions/index.html").includes("<p>Status: Draft. Written by: Claude Code (draft). Approved by: -.</p>"));
+  const m = model();
+  Object.assign(m.documents.find((d) => d.path === "project/contributions.md"), { status: null, writtenBy: null, approvedBy: "<b>fmm</b>." });
+  assert.ok(renderSite(m).get("contributions/index.html").includes("<p>Status: -. Written by: -. Approved by: &lt;b&gt;fmm&lt;/b&gt;.</p>"));
+});
+
 test("contributions page links the account and counts unchecked decisions", () => {
   const html = site().get("contributions/index.html");
   assert.ok(html.includes("Draft"));
   assert.ok(html.includes("Contributions of the researchers"));
   assert.ok(html.includes('href="../docs/project/contributions/index.html"'));
   assert.equal((html.match(/not checked by a person/g) ?? []).length, 2);
-  assert.match(html, /1 decision is not checked by a person/);
+  assert.match(html, /1 decision is not checked by a person\. The Decisions page marks each of them\./);
 });
 
 test("contributions page without an account says so", () => {
@@ -352,6 +403,20 @@ test("decisions page shows the time, the topic filter and the detail notes", () 
   assert.ok(html.includes("Impact: Shorter prompts cost less."));
   assert.ok(html.includes("Replaces D1, D2."));
   assert.ok(html.includes('<span class="note">Not checked by a person.</span>'));
+});
+
+const decisionRow = (html, id) => html.match(new RegExp(`<tr data-row[^>]*><td>${id}</td>[^]*?</tr>`))[0];
+
+test("decisions page notes each check, and a checked classified row has no mark (I2)", () => {
+  const d2 = decisionRow(site().get("decisions/index.html"), "D2");
+  assert.ok(d2.includes('<span class="note">Checked by Fiona Miller, 2026-10-06.</span>'), d2);
+  assert.ok(!/not checked by a person/i.test(d2), d2);
+  assert.ok(/Not checked by a person/.test(decisionRow(site().get("decisions/index.html"), "D1")));
+  const m = model();
+  m.decisions[1].checks.push({ by: "<i>Alex</i>", byId: "aav", date: "2026-10-07", note: "" });
+  const two = decisionRow(renderSite(m).get("decisions/index.html"), "D2");
+  const [first, second] = ["Checked by Fiona Miller, 2026-10-06.", "Checked by &lt;i&gt;Alex&lt;/i&gt;, 2026-10-07."].map((s) => two.indexOf(s));
+  assert.ok(first > 0 && second > first, two);
 });
 
 test("decisions page has the topic grid and the time bins", () => {
@@ -394,8 +459,19 @@ test("Records has Milestone, Size and Links columns", () => {
   }
   assert.ok(html.includes("3 tasks"));
   assert.ok(html.includes("2 tasks complete; 2 rulings"));
-  assert.ok(html.includes(`href="${REPO}/blob/main/replication_materials/plans/2026-10-02-alpha-plan.md">GitHub</a>`));
-  assert.ok(html.includes('href="../docs/plans/2026-10-02-alpha-plan/index.html">Page</a>'));
+  assert.ok(html.includes(`href="${REPO}/blob/main/replication_materials/plans/2026-10-02-alpha-plan.md" aria-label="GitHub: Alpha plan">GitHub</a>`));
+  assert.ok(html.includes('href="../docs/plans/2026-10-02-alpha-plan/index.html" aria-label="Page: Alpha plan">Page</a>'));
+});
+
+test("the short links of Records and Releases name their target (M3)", () => {
+  const m = model();
+  m.documents[1].title = 'Plan "<x>"';
+  const rec = renderSite(m).get("records/index.html");
+  assert.ok(rec.includes('aria-label="Page: Plan &quot;&lt;x&gt;&quot;">Page</a>'), "escaped title");
+  assert.ok(rec.includes('aria-label="GitHub: Plan &quot;&lt;x&gt;&quot;">GitHub</a>'));
+  const rel = site().get("releases/index.html");
+  assert.ok(rel.includes(`<a href="${REPO}/tree/v0.2.0" aria-label="Files at this tag: v0.2.0">Files at this tag</a>`));
+  assert.ok(rel.includes(`<a href="${REPO}/tree/v0.1.0" aria-label="Files at this tag: v0.1.0">Files at this tag</a>`));
 });
 
 test("Home has Now before Status, and links every nav page", () => {
