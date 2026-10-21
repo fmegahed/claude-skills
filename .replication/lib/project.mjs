@@ -8,6 +8,7 @@ import { DEFAULT_TOKENS } from "./html.mjs";
 import {
   readPeople, readDecisions, readRulings, readCorrectionsTable, applyCorrections, readTopics, readChecksTable, applyChecks,
 } from "./decisions.mjs";
+import { readReleases, readResults, checkReleaseResults } from "./releases.mjs";
 
 export const FORMAT_VERSION = 1;
 export const MILESTONE_COLUMNS = ["ID", "Milestone", "State", "Plan", "Ledger"];
@@ -202,6 +203,21 @@ function readAllDecisions(base, people) {
   };
 }
 
+// Releases and results are optional. Results come first because releases refer to them.
+function readReleasesAndResults(root, base, decisionIds) {
+  const [releasesFile, resultsFile] = ["project/releases.md", "project/results.md"];
+  const read = (rel) => (existsSync(join(base, rel)) ? readFileSync(join(base, rel), "utf8") : null);
+  const releasesText = read(releasesFile);
+  const resultsText = read(resultsFile);
+  const releases = releasesText === null ? [] : readReleases(releasesText, releasesFile, decisionIds);
+  const results = resultsText === null ? []
+    : readResults(resultsText, resultsFile, { root, releaseTags: releases.map((r) => r.tag), decisionIds });
+  checkReleaseResults(releases, results, releasesFile);
+  const when = (r) => r.date + (r.time ?? "");
+  releases.sort((a, b) => (when(a) < when(b) ? 1 : when(a) > when(b) ? -1 : 0));
+  return { releases, results };
+}
+
 function docKind(rel) {
   const suffix = rel.match(/-([a-z]+)\.md$/)?.[1];
   if (DOC_KINDS.includes(suffix)) return suffix;
@@ -300,6 +316,7 @@ export function loadProject(root, opts = {}) {
     id: c.ID, item: c.Item, blocks: c.Blocks, owner: c.Owner,
   }));
   const { decisions, topics } = readAllDecisions(base, people);
+  const { releases, results } = readReleasesAndResults(root, base, decisions.map((d) => d.id));
   const tally = new Map();
   for (const d of decisions) for (const id of d.decidedBy) tally.set(id, (tally.get(id) ?? 0) + 1);
   const byDecider = [...tally].map(([id, count]) => ({ id, name: people.get(id).name, count }))
@@ -312,6 +329,8 @@ export function loadProject(root, opts = {}) {
     },
     decisions,
     topics,
+    releases,
+    results,
     events: readEvents(readRequired(base, "project/process.md"), "project/process.md"),
     documents: readDocuments(base),
     calls: readCalls(base),
