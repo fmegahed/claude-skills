@@ -38,6 +38,17 @@ test("decisions include rulings after D rows", () => {
   assert.ok(d3.corrected);
 });
 
+test("topics and checks come from the fixture", () => {
+  const m = model();
+  assert.deepEqual(m.topics.map((t) => t.topic), ["prompts", "data"]);
+  const by = Object.fromEntries(m.decisions.map((d) => [d.id, d]));
+  assert.equal(by.D1.checked, false);
+  assert.equal(by.D2.checked, true);
+  assert.deepEqual(by.D2.checks, [{ by: "Fiona Miller", byId: "fmm", date: "2026-10-06", note: "Checked against the call log." }]);
+  assert.equal(by.D3.topic, "prompts");
+  assert.deepEqual(by.D3.replaces, ["D1", "D2"]);
+});
+
 test("a correction of a ruling ID applies", () => {
   const dir = tempCopy();
   try {
@@ -65,7 +76,7 @@ test("events sorted by time", () => {
 
 test("documents in date order with kinds", () => {
   const docs = model().documents;
-  assert.deepEqual(docs.map((d) => d.kind), ["design", "plan", "probes", "findings", "ledger", "readme", "calls"]);
+  assert.deepEqual(docs.map((d) => d.kind), ["design", "plan", "probes", "findings", "ledger", "readme", "calls", "contributions"]);
   assert.equal(docs[0].title, "Alpha design");
   assert.equal(docs[0].status, "Approved");
   assert.equal(docs[0].path, "plans/2026-10-01-alpha-design.md");
@@ -244,4 +255,26 @@ test("extra pages are checked at load", () => {
       assert.throws(() => loadProject(dir, OPTS), (e) => e.name === "RecordFormatError"
         && e.message.startsWith(".replication/site.config.json:1: ") && re.test(e.message), JSON.stringify(pages)));
   }
+});
+
+test("documents carry milestone and size", () => {
+  const byPath = Object.fromEntries(model().documents.map((d) => [d.path, d]));
+  const plan = byPath["plans/2026-10-02-alpha-plan.md"];
+  const ledger = byPath["plans/2026-10-05-alpha-ledger.md"];
+  assert.equal(plan.milestone, "M2");
+  assert.equal(plan.size, "3 tasks");
+  assert.equal(ledger.milestone, "M2");
+  assert.equal(ledger.size, "2 tasks complete; 2 rulings");
+  assert.equal(byPath["plans/2026-10-01-alpha-design.md"].milestone, null);
+  assert.equal(byPath["plans/2026-10-01-alpha-design.md"].size, null);
+});
+
+test("documents keep Written by and Approved by of their Item/Value table (I5)", () => {
+  const byPath = Object.fromEntries(model().documents.map((d) => [d.path, d]));
+  const account = byPath["project/contributions.md"];
+  assert.equal(account.status, "Draft");
+  assert.equal(account.writtenBy, "Claude Code (draft)");
+  assert.equal(account.approvedBy, "-");
+  assert.equal(byPath["plans/2026-10-02-alpha-plan.md"].writtenBy, null);
+  assert.equal(byPath["plans/2026-10-02-alpha-plan.md"].approvedBy, null);
 });
