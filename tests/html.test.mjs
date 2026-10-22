@@ -58,6 +58,89 @@ test("pageShell is a full accessible document", () => {
   assert.ok(doc.includes('href="../../../records/index.html"'));
 });
 
+// The link texts of one navigation group of a page, in order.
+const groupLabels = (html, id) => {
+  const list = html.match(new RegExp(`<ul aria-labelledby="${id}">([^]*?)</ul>`));
+  assert.ok(list, id);
+  return [...list[1].matchAll(/<a [^>]*>([^<]*)<\/a>/g)].map((x) => x[1]);
+};
+
+test("pageShell groups the navigation by reader, each group in reading order", () => {
+  const m = model();
+  m.config.pages = [
+    { file: "a.html", title: "Analysis", path: "pages/a.html" },
+    { file: "b.html", title: "Notebook", path: "pages/b.html", group: "record" },
+    { file: "c.html", title: "Description loops", path: "pages/c.html", group: "reuse" },
+  ];
+  const html = pageShell({ path: "index.html", title: "Home", body: "", model: m });
+  assert.ok(html.includes('<p class="nav-label" id="nav-record">How we worked with Claude Code</p>'));
+  assert.ok(html.includes('<p class="nav-label" id="nav-reuse">Rerun and build on it</p>'));
+  assert.deepEqual(groupLabels(html, "nav-record"),
+    ["Home", "Process", "Timeline", "Progress", "Decisions", "Contributions", "Records", "Results", "Notebook"]);
+  assert.deepEqual(groupLabels(html, "nav-reuse"),
+    ["Analysis", "Description loops", "Releases", "Repository"]);
+  assert.ok(html.indexOf('id="nav-record"') < html.indexOf('id="nav-reuse"'));
+});
+
+test("the second navigation group sits at the right edge on wide screens", () => {
+  const css = themeCss(DEFAULT_TOKENS);
+  assert.ok(/\.site-nav \{[^}]*display: flex;[^}]*justify-content: space-between;/.test(css));
+  assert.ok(/@media \(min-width: 900px\) \{[^]*\.nav-reuse \{[^}]*margin-left: auto;[^}]*text-align: right;/.test(css));
+});
+
+// Each navigation link with its description: [label, aria-describedby, id of the description,
+// description, data-line].
+const navDescriptions = (html) => [...html.matchAll(
+  /<li><a [^>]*aria-describedby="([^"]+)" data-line="([^"]+)"[^>]*>([^<]*)<\/a><span class="nav-desc" id="([^"]+)" hidden>([^<]*)<\/span><\/li>/g,
+)].map((x) => [x[3], x[1], x[4], x[5], x[2]]);
+// The description line of the header.
+const navLine = (html) => html.match(/<p class="nav-line" aria-hidden="true" data-default="([^"]*)"[^>]*>([^<]*)<\/p>/);
+
+test("each navigation link has a description for screen readers and for the description line", () => {
+  const m = model();
+  m.config.pages = [
+    { file: "a.html", title: "Analysis notebook", path: "pages/a.html", group: "reuse", description: "Remakes every table." },
+    { file: "b.html", title: "Plain", path: "pages/b.html", group: "reuse" },
+  ];
+  const html = pageShell({ path: "index.html", title: "Home", body: "", model: m });
+  const links = navDescriptions(html);
+  assert.deepEqual(links.map(([label]) => label), ["Home", "Process", "Timeline", "Progress", "Decisions",
+    "Contributions", "Records", "Results", "Analysis notebook", "Releases", "Repository"]);
+  for (const [label, ref, id, text, line] of links) {
+    assert.equal(ref, id, label);
+    assert.ok(text.length > 10, label);
+    assert.equal(line, `${label}: ${text}`, label);
+  }
+  assert.equal(new Set(links.map(([, , id]) => id)).size, links.length, "unique description ids");
+  assert.equal(links.find(([label]) => label === "Analysis notebook")[3], "Remakes every table.");
+  // An extra page with no description gets a plain link.
+  assert.match(html, /<li><a href="pages\/b\.html">Plain<\/a><\/li>/);
+  // No floating tooltip that could cover the page.
+  assert.ok(!html.includes("nav-tip"));
+});
+
+test("the description line shows the current page by default, or a hint on a page that is not a tab", () => {
+  const home = pageShell({ path: "index.html", title: "Home", body: "", model: model() });
+  const [, def, text] = navLine(home);
+  assert.match(def, /^Home: The status of the project/);
+  assert.equal(text, def);
+  const doc = pageShell({ path: "docs/plans/a/index.html", title: "A", body: "", model: model() });
+  assert.match(navLine(doc)[1], /^Point to a tab/);
+  // The line is inside the navigation, after the two groups, so that the pointer
+  // can move onto it without leaving the navigation.
+  assert.ok(home.indexOf('id="nav-reuse"') < home.indexOf('class="nav-line"'));
+  assert.ok(home.indexOf('class="nav-line"') < home.indexOf("</nav>"));
+});
+
+test("the description line reserves its own row, with AAA contrast, and follows hover and focus", () => {
+  const css = themeCss(DEFAULT_TOKENS);
+  assert.ok(/\.nav-line \{[^}]*flex: 1 0 100%;[^}]*background: var\(--accent-strong\);[^}]*color: var\(--on-accent\);/.test(css));
+  assert.ok(contrast(DEFAULT_TOKENS["on-accent"], DEFAULT_TOKENS["accent-strong"]) >= 7, "AAA 1.4.6");
+  const html = pageShell({ path: "index.html", title: "Home", body: "", model: model() });
+  for (const s of ['"mouseenter"', '"focus"', '"mouseleave"', '"focusout"', "dataset.line", "dataset.default"])
+    assert.ok(html.includes(s), s);
+});
+
 test("themeCss uses tokens only and has accessibility rules", () => {
   const css = themeCss(DEFAULT_TOKENS);
   const outside = css.slice(css.indexOf("}") + 1);

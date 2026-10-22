@@ -4,7 +4,7 @@
 
 | Page | Content |
 |---|---|
-| Home | The project name and the lead paragraph of the record README. A "Now" section: the latest release (tag and date), the milestone in progress and the open items. A "Status" line: the current milestone, the next milestone and the date of the build. A strip of the milestones in order, with their states. Counts of decisions by each decider: each person, Claude Code, Subagent and Unknown. Links to the other pages and to the repository. |
+| Home | The project name and the lead paragraph of the record README. A "Now" section: the latest release (tag and date), the milestone in progress and the open items. A "Status" line: the current milestone, the next milestone and the date of the build. A strip of the milestones in order, with their states. Counts of decisions by each decider: each person, Claude Code, Subagent and Unknown. Links to the other pages and to the repository, under the two groups of the navigation. |
 | Records | A table of all documents in `replication_materials/`, in the order of the date in the file name. The columns, in this order: Date, Title, Kind, Milestone, Size, Status, Links. Size gives the tasks of a plan, or the tasks complete and the rulings of a ledger. Links has "Page" (the document page) and "GitHub" (the file on GitHub). Filter buttons by kind. Each title links to its document page. |
 | Decisions | All decisions: the rows of `decisions.md` and the `Ruling:` lines of the ledgers. Columns: ID, date (with the time when it is given), decision, proposed by, decided by, how, evidence, source. Notes under the text of a decision: "Corrected by {name}, {date}." (the page shows the new values), "Checked by {name}, {date}." for each check, the impact, the decisions that it replaces, and "Not checked by a person." for a classified decision that no person checked or corrected. Filter buttons by "decided by", by "how" and, when `## Topics` exists, by topic. With topics, a "Who decided, by topic" grid. A "Decisions over time" chart: one bar for each day, or for each hour when all decisions have one date. The grid and the chart do not count the rulings. |
 | Progress | The milestones with their states and plans. The open items and blockers from `roadmap.md`. For each plan with a ledger: the tasks complete out of the tasks in the plan. A plan without a ledger shows `-`. A table of paid calls. |
@@ -16,7 +16,19 @@
 | Document pages | One page for each markdown file in `plans/`, `findings/`, `probes/` and `calls/`, for the record README, and for `project/contributions.md`. |
 | Extra pages | The files in `pages` of `.replication/site.config.json`, for example a rendered analysis. Each file is copied as it is to `pages/<file name>`. The navigation and the Home page link to each one. |
 
-The navigation order is: Home, Records, Decisions, Contributions, Timeline, Releases, Results, Progress, Process, extra pages, Repository.
+The navigation has two groups, one for each kind of reader. Each group has a label and is in the order that its reader reads:
+
+| Group | Label | Order |
+|---|---|---|
+| `record` | How we worked with Claude Code | Home, Process, Timeline, Progress, Decisions, Contributions, Records, Results, then the extra pages of this group |
+| `reuse` | Rerun and build on it | The extra pages of this group, Releases, Repository |
+
+- The record group follows the work: how the work was organized and moved (Process, Timeline, Progress), then who decided what (Decisions) and the account of who did what (Contributions), then the documents (Records) and the results (Results). Results is a ledger of each result with its release, source and decisions, so it is part of the record.
+- The reuse group gives the documents that make the work again (the extra pages, for example a rendered analysis notebook), then the versions (Releases), then the code (Repository).
+- Give an extra page a title that tells what it is, for example "Analysis notebook", not "Analysis".
+- On a wide screen, the reuse group is at the right edge of the header. On a narrow screen, it goes under the record group.
+- An extra page is in the reuse group, unless its `group` in `site.config.json` is `record`.
+- Each link has a one-line description. The last row of the header is a description line: it shows the description of the current page, or of the link under the pointer or with the keyboard focus. For a link of the reuse group, the text is at the right. The line has its own row, so it covers nothing. It keeps its text while the pointer is in the navigation, the line too (WCAG 1.4.13). Its text is white on `--accent-strong` (7.28:1 with the default tokens, above the 7:1 of AAA). On a page that is not in the navigation, for example a document page, the line gives a hint. Screen readers get each description from the link (`aria-describedby`); the line is `aria-hidden`, so they do not hear it twice. The Home page shows the same descriptions as text after the links. The built-in pages have fixed descriptions; an extra page has the `description` of `site.config.json`, or none.
 
 The footer of each page says "Built from commit {sha} on {date}." It links to the repository.
 
@@ -76,6 +88,8 @@ The footer of each page says "Built from commit {sha} on {date}." It links to th
 - `file` is a path from the project root, with `/` between folders. It has no `..`, no `\` and no drive letter.
 - The file must exist. Two files must not have the same file name.
 - `title` is a text that is not empty. It is the link text in the navigation and on the Home page.
+- `description` is optional: one line that tells the reader what the page does, for example "Remakes every table and figure of the paper, with the code." It shows in the description line of the header and after the link on the Home page. If it is there, it must not be empty.
+- `group` is optional: `reuse` (the default) or `record`. It puts the link in that group of the navigation and of the Home page, in the order of `pages`. Use `record` for a page about how the work was done, for example a lab notebook. Any other value stops the build.
 - The build copies each file, byte for byte, to `pages/<file name>`. It copies nothing else.
 - So a file must be self-contained. In Quarto, use `embed-resources: true`. In R Markdown, use `self_contained: true`.
 - The build does not change or check the content of an extra page. Its accessibility and its links are the work of the project.
@@ -125,7 +139,7 @@ The file is `.github/workflows/replication-site.yml`.
 - Permissions: none at the top level. The build job has `contents: read`. The deploy job has `pages: write` and `id-token: write`.
 - Concurrency group `pages`. A new run does not cancel a running deploy.
 - Each action is pinned to a full commit SHA, with the tag in a comment.
-- The first line is the version line, for example `# replication-materials 1.2.1`.
+- The first line is the version line, for example `# replication-materials 1.3.0`.
 - The workflow and the links of the website use the branch `main`. Set-up stops when the default branch is not `main`.
 - Check the run of the pushed commit: `gh run list --workflow replication-site.yml --commit "$(git rev-parse HEAD)" --limit 1`.
 - After the first push, if no run has started within 60 seconds, start it: `gh workflow run replication-site.yml --ref main`.
@@ -163,10 +177,11 @@ gh run watch "$(gh run list --workflow replication-site.yml --commit "$(git rev-
   - `.github/workflows/replication-site.yml`.
   - The block in `CLAUDE.md`, from `<!-- replication-materials:start -->` to `<!-- replication-materials:end -->`.
 - The records belong to the project. `.replication/site.config.json` also belongs to the project.
-- The build script and the workflow have a version line: `// replication-materials 1.2.1` and `# replication-materials 1.2.1`.
+- The build script and the workflow have a version line: `// replication-materials 1.3.0` and `# replication-materials 1.3.0`.
 - Version 1.1.0 adds extra pages, and its workflow runs on each push to `main`.
 - Version 1.2.0 adds releases, results, a timeline, a contributions page and more decision detail; all of them are optional.
 - Version 1.2.1 joins each budget row to its call log by name, and stops the build on a call log that no budget row names (`references/record-formats.md`, `calls/`).
+- Version 1.3.0 groups the navigation for two kinds of readers: how the work was done with Claude Code, and how to rerun it and build on it. Each group is in the order that its reader reads. A description line in the header shows the description of the current page or of the link under the pointer or the keyboard focus (WCAG 1.4.13). An extra page can name its group with `group` and its description with `description` (the Pages of the website, above).
 - `site.config.json` has `format_version`. The build reads format version 1.
 - When `format_version` is newer than the build script, the build stops. The message says "Run the update procedure of the replication-materials skill."
 - Set-up never replaces a file that exists. Only the update procedure replaces skill-owned files.
