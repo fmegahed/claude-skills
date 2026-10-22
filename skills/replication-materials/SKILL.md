@@ -130,6 +130,7 @@ The `Source` and `Session` columns hold the session ID.
 5. Before a paid API call, find its row in `calls/README.md`. If no row exists, stop and propose a row in the chat.
    - Write the row only after the person approves it. Put their ID in Approved by.
    - Never write an approval that the person did not give.
+   - In `Service`, write the short name of the call log: `openai` for `calls/openai-calls.csv`. The build joins the row to the log by this name.
    - Log each call that Claude Code makes in `calls/<service>-calls.csv`. Stop at the limits of the row.
    - Never write a key, a token or an authorization header in any file.
 6. At each tag, add a row to `project/releases.md`. When the file does not exist, copy `<skill>/templates/optional/project/releases.md`.
@@ -205,6 +206,8 @@ The `Source` and `Session` columns hold the session ID.
 5. Never replace a record. Do not change `replication_materials/` or `.replication/site.config.json`.
    - Version 1.2.0 adds `releases.md`, `results.md`, `contributions.md`, the `## Topics` and `## Checks` tables, and the decision columns Time (UTC), Topic, Impact and Replaces.
    - They are all optional. A project adds each one when it first needs it (During the work). The update adds none of them.
+   - Version 1.2.1 stops the build on a call log that no budget row names. If the build check stops with this message, write the name of the log in the Service column of its budget rows.
+   - Commit that fix alone, by the record rule. It changes a name, not a budget or an approval.
 6. Run the build check. Commit these files alone. Ask the person before you push: this commit is not record-only.
 
 ## Red flags

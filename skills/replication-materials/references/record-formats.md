@@ -346,6 +346,8 @@ Values of `Stage`:
 
 - Make no paid call before a row exists for it.
 - Propose the row in the chat first. Write it only after the person approves it.
+- `Service` is the short name of the service. It is the `<service>` part of the call log `calls/<service>-calls.csv`: for example `openai` and `calls/openai-calls.csv`. Use letters, digits, `.`, `_` and `-`, with no space. A readable name, such as the full product name, goes in `Purpose` or in the text of the file.
+- The build joins each budget row to its call log by this name. A budget row with no call log yet is correct: it shows 0 calls.
 - `Max calls` and `Max cost (USD)` are numbers, with no `$` sign.
 - `Approved by` is the ID of the person who approved the row. Never write an approval that the person did not give.
 
@@ -355,6 +357,7 @@ Values of `Stage`:
 - Write one line for each call. `cost_usd` is a number.
 - Leave `cost_usd` empty when a call has no cost, for example a failed call. The build counts it as 0.
 - Any other text in `cost_usd` stops the build.
+- At least one budget row must have the Service `<service>` of the log. Else the build stops: `calls/<service>-calls.csv:1: no budget row in calls/README.md has the Service "<service>".` Write `<service>` in the Service column of the budget rows of the log. Before version 1.2.1, the build did not stop: the Progress page showed the log and its budget as two services.
 - Claude Code writes the lines for the calls that it makes (probes, tests).
 - When the project code makes paid calls, that code writes the same format. The skill supplies no logging helper.
 - Stop when the log reaches `Max calls` or `Max cost (USD)` of the budget. Ask for a new row.
