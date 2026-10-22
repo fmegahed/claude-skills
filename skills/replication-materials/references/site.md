@@ -20,11 +20,12 @@ The navigation has two groups, one for each kind of reader. Each group has a lab
 
 | Group | Label | Order |
 |---|---|---|
-| `record` | How we worked with Claude Code | Home, Contributions, Decisions, Timeline, Progress, Process, Records, then the extra pages of this group |
-| `reuse` | Rerun and build on it | Results, the extra pages of this group, Releases, Repository |
+| `record` | How we worked with Claude Code | Home, Contributions, Decisions, Results, Timeline, Progress, Process, Records, then the extra pages of this group |
+| `reuse` | Rerun and build on it | The extra pages of this group, Releases, Repository |
 
-- The record group gives the account first (Contributions), then the decisions behind it, then the work over time (Timeline, Progress, Process), then the documents (Records).
-- The reuse group gives what the project found (Results), then how to make it again (the extra pages, for example a rendered analysis), then the versions (Releases) and the code (Repository).
+- The record group gives the account first (Contributions), then the decisions behind it and the results that they gave, then the work over time (Timeline, Progress, Process), then the documents (Records). Results is a ledger of each result with its release, source and decisions, so it is part of the record.
+- The reuse group gives the documents that make the work again (the extra pages, for example a rendered analysis notebook), then the versions (Releases), then the code (Repository).
+- Give an extra page a title that tells what it is, for example "Analysis notebook", not "Analysis".
 - On a wide screen, the reuse group is at the right edge of the header. On a narrow screen, it goes under the record group.
 - An extra page is in the reuse group, unless its `group` in `site.config.json` is `record`.
 

@@ -76,9 +76,9 @@ test("pageShell groups the navigation by reader, each group in reading order", (
   assert.ok(html.includes('<p class="nav-label" id="nav-record">How we worked with Claude Code</p>'));
   assert.ok(html.includes('<p class="nav-label" id="nav-reuse">Rerun and build on it</p>'));
   assert.deepEqual(groupLabels(html, "nav-record"),
-    ["Home", "Contributions", "Decisions", "Timeline", "Progress", "Process", "Records", "Notebook"]);
+    ["Home", "Contributions", "Decisions", "Results", "Timeline", "Progress", "Process", "Records", "Notebook"]);
   assert.deepEqual(groupLabels(html, "nav-reuse"),
-    ["Results", "Analysis", "Description loops", "Releases", "Repository"]);
+    ["Analysis", "Description loops", "Releases", "Repository"]);
   assert.ok(html.indexOf('id="nav-record"') < html.indexOf('id="nav-reuse"'));
 });
 
