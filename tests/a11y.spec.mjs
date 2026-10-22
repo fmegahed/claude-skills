@@ -74,28 +74,29 @@ for (const width of WIDTHS) {
 test.describe("at 1280 px", () => {
   test.use({ viewport: { width: 1280, height: 800 } });
 
-  // WCAG 1.4.13: the description of a navigation link shows on hover and on focus,
-  // stays while the pointer is on it, and Escape closes it. Its text meets the
-  // enhanced contrast of AAA (1.4.6).
-  test("a navigation description shows on hover and focus, is hoverable and closes with Escape", async ({ page }) => {
+  // The description line of the header: the current page by default, the tab
+  // under the pointer or with the keyboard focus, and the same text while the
+  // pointer moves onto the line (WCAG 1.4.13). It covers nothing, and its text
+  // meets the enhanced contrast of AAA (1.4.6).
+  test("the description line follows hover and focus, stays while the pointer is on it, and covers nothing", async ({ page }) => {
     await open(page, "decisions/index.html", 1280);
-    const link = page.locator(".site-nav a", { hasText: "Timeline" });
-    const tip = page.locator(`#${await link.getAttribute("aria-describedby")}`);
-    await expect(tip).toBeHidden();
-    await link.hover();
-    await expect(tip).toBeVisible();
-    await tip.hover();
-    await expect(tip).toBeVisible();
-    const { violations } = await new AxeBuilder({ page }).include(`#${await tip.getAttribute("id")}`)
-      .withTags([...TAGS, "wcag2aaa"]).analyze();
+    const line = page.locator(".nav-line");
+    await expect(line).toHaveText(/^Decisions: /);
+    const timeline = page.locator(".site-nav a", { hasText: "Timeline" });
+    await timeline.hover();
+    await expect(line).toHaveText(/^Timeline: /);
+    await line.hover();
+    await expect(line).toHaveText(/^Timeline: /);
+    const { violations } = await new AxeBuilder({ page }).include(".nav-line").withTags([...TAGS, "wcag2aaa"]).analyze();
     expect(violations).toEqual([]);
-    await page.keyboard.press("Escape");
-    await expect(tip).toBeHidden();
     await page.mouse.move(640, 700);
-    await link.focus();
-    await expect(tip).toBeVisible();
-    await page.keyboard.press("Escape");
-    await expect(tip).toBeHidden();
+    await expect(line).toHaveText(/^Decisions: /);
+    await page.locator(".site-nav a", { hasText: "Records" }).focus();
+    await expect(line).toHaveText(/^Records: /);
+    // The header ends above the page title.
+    const lineBottom = await line.evaluate((el) => el.getBoundingClientRect().bottom);
+    const h1Top = await page.locator("main h1").evaluate((el) => el.getBoundingClientRect().top);
+    expect(lineBottom).toBeLessThanOrEqual(h1Top);
   });
 
   test("filters work with the keyboard", async ({ page }) => {

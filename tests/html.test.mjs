@@ -88,40 +88,57 @@ test("the second navigation group sits at the right edge on wide screens", () =>
   assert.ok(/@media \(min-width: 900px\) \{[^]*\.nav-reuse \{[^}]*margin-left: auto;[^}]*text-align: right;/.test(css));
 });
 
-// Each navigation link with its description: [label, aria-describedby, tooltip id, tooltip text].
-const navTips = (html) => [...html.matchAll(
-  /<li><a [^>]*aria-describedby="([^"]+)"[^>]*>([^<]*)<\/a><span class="nav-tip" id="([^"]+)" role="tooltip"><span>([^<]*)<\/span><\/span><\/li>/g,
-)].map((x) => [x[2], x[1], x[3], x[4]]);
+// Each navigation link with its description: [label, aria-describedby, id of the description,
+// description, data-line].
+const navDescriptions = (html) => [...html.matchAll(
+  /<li><a [^>]*aria-describedby="([^"]+)" data-line="([^"]+)"[^>]*>([^<]*)<\/a><span class="nav-desc" id="([^"]+)" hidden>([^<]*)<\/span><\/li>/g,
+)].map((x) => [x[3], x[1], x[4], x[5], x[2]]);
+// The description line of the header.
+const navLine = (html) => html.match(/<p class="nav-line" aria-hidden="true" data-default="([^"]*)"[^>]*>([^<]*)<\/p>/);
 
-test("each navigation link has a description for screen readers, hover and keyboard focus", () => {
+test("each navigation link has a description for screen readers and for the description line", () => {
   const m = model();
   m.config.pages = [
     { file: "a.html", title: "Analysis notebook", path: "pages/a.html", group: "reuse", description: "Remakes every table." },
     { file: "b.html", title: "Plain", path: "pages/b.html", group: "reuse" },
   ];
   const html = pageShell({ path: "index.html", title: "Home", body: "", model: m });
-  const tips = navTips(html);
-  const labels = tips.map(([label]) => label);
-  assert.deepEqual(labels, ["Home", "Process", "Timeline", "Progress", "Decisions", "Contributions", "Records",
-    "Results", "Analysis notebook", "Releases", "Repository"]);
-  for (const [label, ref, id, text] of tips) {
+  const links = navDescriptions(html);
+  assert.deepEqual(links.map(([label]) => label), ["Home", "Process", "Timeline", "Progress", "Decisions",
+    "Contributions", "Records", "Results", "Analysis notebook", "Releases", "Repository"]);
+  for (const [label, ref, id, text, line] of links) {
     assert.equal(ref, id, label);
     assert.ok(text.length > 10, label);
+    assert.equal(line, `${label}: ${text}`, label);
   }
-  assert.equal(new Set(tips.map(([, , id]) => id)).size, tips.length, "unique tooltip ids");
-  assert.equal(tips.find(([label]) => label === "Analysis notebook")[3], "Remakes every table.");
+  assert.equal(new Set(links.map(([, , id]) => id)).size, links.length, "unique description ids");
+  assert.equal(links.find(([label]) => label === "Analysis notebook")[3], "Remakes every table.");
   // An extra page with no description gets a plain link.
   assert.match(html, /<li><a href="pages\/b\.html">Plain<\/a><\/li>/);
+  // No floating tooltip that could cover the page.
+  assert.ok(!html.includes("nav-tip"));
 });
 
-test("hover and focus show a description; Escape closes it until the pointer or focus leaves", () => {
+test("the description line shows the current page by default, or a hint on a page that is not a tab", () => {
+  const home = pageShell({ path: "index.html", title: "Home", body: "", model: model() });
+  const [, def, text] = navLine(home);
+  assert.match(def, /^Home: The status of the project/);
+  assert.equal(text, def);
+  const doc = pageShell({ path: "docs/plans/a/index.html", title: "A", body: "", model: model() });
+  assert.match(navLine(doc)[1], /^Point to a tab/);
+  // The line is inside the navigation, after the two groups, so that the pointer
+  // can move onto it without leaving the navigation.
+  assert.ok(home.indexOf('id="nav-reuse"') < home.indexOf('class="nav-line"'));
+  assert.ok(home.indexOf('class="nav-line"') < home.indexOf("</nav>"));
+});
+
+test("the description line reserves its own row, with AAA contrast, and follows hover and focus", () => {
   const css = themeCss(DEFAULT_TOKENS);
-  const show = css.search(/\.site-nav li:hover \.nav-tip, \.site-nav li:focus-within \.nav-tip \{[^}]*display: block;/);
-  const close = css.search(/\.site-nav li\.tip-closed \.nav-tip \{[^}]*display: none;/);
-  assert.ok(show > 0 && close > show, "the close rule comes after the show rule");
-  assert.ok(/\.nav-tip \{[^}]*display: none;/.test(css));
+  assert.ok(/\.nav-line \{[^}]*flex: 1 0 100%;[^}]*background: var\(--accent-strong\);[^}]*color: var\(--on-accent\);/.test(css));
+  assert.ok(contrast(DEFAULT_TOKENS["on-accent"], DEFAULT_TOKENS["accent-strong"]) >= 7, "AAA 1.4.6");
   const html = pageShell({ path: "index.html", title: "Home", body: "", model: model() });
-  assert.ok(html.includes('"Escape"') && html.includes("tip-closed"));
+  for (const s of ['"mouseenter"', '"focus"', '"mouseleave"', '"focusout"', "dataset.line", "dataset.default"])
+    assert.ok(html.includes(s), s);
 });
 
 test("themeCss uses tokens only and has accessibility rules", () => {
