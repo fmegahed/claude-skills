@@ -133,8 +133,9 @@ const withPages = (title = "Analysis") => {
 test("Home lists the pages under the two reader groups, in navigation order", () => {
   const home = withPages().get("index.html");
   const main = home.slice(home.indexOf('<main id="main">'));
-  assert.match(main, /<h3>How we worked with Claude Code<\/h3>\s*<ul>\s*<li><a href="contributions\/index\.html">Contributions<\/a><\/li>\s*<li><a href="decisions\/index\.html">Decisions<\/a><\/li>\s*<li><a href="results\/index\.html">Results<\/a><\/li>/);
-  assert.match(main, /<h3>Rerun and build on it<\/h3>\s*<ul>\s*<li><a href="pages\/report\.html">Analysis<\/a><\/li>\s*<li><a href="releases\/index\.html">Releases<\/a><\/li>\s*<li><a href="https:\/\/github\.com\/example\/fixture">Repository<\/a><\/li>\s*<\/ul>/);
+  // Each page with its description as visible text, for screens with no hover.
+  assert.match(main, /<h3>How we worked with Claude Code<\/h3>\s*<ul>\s*<li><a href="process\/index\.html">Process<\/a>: [^<]{10,}<\/li>\s*<li><a href="timeline\/index\.html">Timeline<\/a>: [^<]{10,}<\/li>/);
+  assert.match(main, /<h3>Rerun and build on it<\/h3>\s*<ul>\s*<li><a href="pages\/report\.html">Analysis<\/a><\/li>\s*<li><a href="releases\/index\.html">Releases<\/a>: [^<]{10,}<\/li>\s*<li><a href="https:\/\/github\.com\/example\/fixture">Repository<\/a>: [^<]{10,}<\/li>\s*<\/ul>/);
 });
 
 test("extra pages are in the navigation of every page and on Home", () => {
@@ -212,9 +213,9 @@ test("results page has filters, status and source links", () => {
   assert.equal(html.match(/Replaced by/g).length, 1);
 });
 
-test("nav has Results after Decisions and Releases before Repository when the files exist", () => {
+test("nav follows the work, with Results last on the record side and Releases before Repository", () => {
   const labels = navLabels(site().get("index.html"));
-  assert.deepEqual(labels, ["Home", "Contributions", "Decisions", "Results", "Timeline", "Progress", "Process", "Records",
+  assert.deepEqual(labels, ["Home", "Process", "Timeline", "Progress", "Decisions", "Contributions", "Records", "Results",
     "Releases", "Repository"]);
 });
 
@@ -225,7 +226,7 @@ test("a record without the two files builds with no pages and no nav items", () 
     for (const f of ["releases", "results"]) rmSync(join(dir, "replication_materials/project", `${f}.md`));
     const s = renderSite(loadProject(dir, OPTS));
     assert.ok(!s.has("releases/index.html") && !s.has("results/index.html"));
-    assert.deepEqual(navLabels(s.get("index.html")), ["Home", "Contributions", "Decisions", "Timeline", "Progress", "Process", "Records", "Repository"]);
+    assert.deepEqual(navLabels(s.get("index.html")), ["Home", "Process", "Timeline", "Progress", "Decisions", "Contributions", "Records", "Repository"]);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
@@ -504,8 +505,8 @@ test("Home has Now before Status, and links every nav page", () => {
   assert.ok(now.includes("M2"));
   assert.ok(now.includes("O1"));
   const pages = html.slice(html.indexOf("<h2>Pages</h2>"));
-  const labels = [...pages.matchAll(/<li><a [^>]*>([^<]*)<\/a><\/li>/g)].map((m) => m[1]);
-  assert.deepEqual(labels, ["Contributions", "Decisions", "Results", "Timeline", "Progress", "Process", "Records", "Releases", "Repository"]);
+  const labels = [...pages.matchAll(/<li><a [^>]*>([^<]*)<\/a>/g)].map((m) => m[1]);
+  assert.deepEqual(labels, ["Process", "Timeline", "Progress", "Decisions", "Contributions", "Records", "Results", "Releases", "Repository"]);
 });
 
 test("Now empty states", () => {

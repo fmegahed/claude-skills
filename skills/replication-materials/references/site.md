@@ -20,14 +20,15 @@ The navigation has two groups, one for each kind of reader. Each group has a lab
 
 | Group | Label | Order |
 |---|---|---|
-| `record` | How we worked with Claude Code | Home, Contributions, Decisions, Results, Timeline, Progress, Process, Records, then the extra pages of this group |
+| `record` | How we worked with Claude Code | Home, Process, Timeline, Progress, Decisions, Contributions, Records, Results, then the extra pages of this group |
 | `reuse` | Rerun and build on it | The extra pages of this group, Releases, Repository |
 
-- The record group gives the account first (Contributions), then the decisions behind it and the results that they gave, then the work over time (Timeline, Progress, Process), then the documents (Records). Results is a ledger of each result with its release, source and decisions, so it is part of the record.
+- The record group follows the work: how the work was organized and moved (Process, Timeline, Progress), then who decided what (Decisions) and the account of who did what (Contributions), then the documents (Records) and the results (Results). Results is a ledger of each result with its release, source and decisions, so it is part of the record.
 - The reuse group gives the documents that make the work again (the extra pages, for example a rendered analysis notebook), then the versions (Releases), then the code (Repository).
 - Give an extra page a title that tells what it is, for example "Analysis notebook", not "Analysis".
 - On a wide screen, the reuse group is at the right edge of the header. On a narrow screen, it goes under the record group.
 - An extra page is in the reuse group, unless its `group` in `site.config.json` is `record`.
+- Each link has a one-line description. It shows under the link on hover and on keyboard focus, and screen readers read it (`aria-describedby`). It stays while the pointer is on it, and Escape closes it (WCAG 1.4.13). Its text is ink on white, above the 7:1 of AAA. The Home page shows the same descriptions as text after the links, for screens with no hover. The built-in pages have fixed descriptions; an extra page has the `description` of `site.config.json`, or none.
 
 The footer of each page says "Built from commit {sha} on {date}." It links to the repository.
 
@@ -87,6 +88,7 @@ The footer of each page says "Built from commit {sha} on {date}." It links to th
 - `file` is a path from the project root, with `/` between folders. It has no `..`, no `\` and no drive letter.
 - The file must exist. Two files must not have the same file name.
 - `title` is a text that is not empty. It is the link text in the navigation and on the Home page.
+- `description` is optional: one line that tells the reader what the page does, for example "Remakes every table and figure of the paper, with the code." It is the tooltip of the link and the text after the link on the Home page. If it is there, it must not be empty.
 - `group` is optional: `reuse` (the default) or `record`. It puts the link in that group of the navigation and of the Home page, in the order of `pages`. Use `record` for a page about how the work was done, for example a lab notebook. Any other value stops the build.
 - The build copies each file, byte for byte, to `pages/<file name>`. It copies nothing else.
 - So a file must be self-contained. In Quarto, use `embed-resources: true`. In R Markdown, use `self_contained: true`.
@@ -179,7 +181,7 @@ gh run watch "$(gh run list --workflow replication-site.yml --commit "$(git rev-
 - Version 1.1.0 adds extra pages, and its workflow runs on each push to `main`.
 - Version 1.2.0 adds releases, results, a timeline, a contributions page and more decision detail; all of them are optional.
 - Version 1.2.1 joins each budget row to its call log by name, and stops the build on a call log that no budget row names (`references/record-formats.md`, `calls/`).
-- Version 1.3.0 groups the navigation for two kinds of readers: how the work was done with Claude Code, and how to rerun it and build on it. Each group is in the order that its reader reads. An extra page can name its group with `group` (the Pages of the website, above).
+- Version 1.3.0 groups the navigation for two kinds of readers: how the work was done with Claude Code, and how to rerun it and build on it. Each group is in the order that its reader reads. Each link has a description on hover and keyboard focus (WCAG 1.4.13). An extra page can name its group with `group` and its description with `description` (the Pages of the website, above).
 - `site.config.json` has `format_version`. The build reads format version 1.
 - When `format_version` is newer than the build script, the build stops. The message says "Run the update procedure of the replication-materials skill."
 - Set-up never replaces a file that exists. Only the update procedure replaces skill-owned files.

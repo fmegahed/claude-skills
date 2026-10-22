@@ -74,6 +74,30 @@ for (const width of WIDTHS) {
 test.describe("at 1280 px", () => {
   test.use({ viewport: { width: 1280, height: 800 } });
 
+  // WCAG 1.4.13: the description of a navigation link shows on hover and on focus,
+  // stays while the pointer is on it, and Escape closes it. Its text meets the
+  // enhanced contrast of AAA (1.4.6).
+  test("a navigation description shows on hover and focus, is hoverable and closes with Escape", async ({ page }) => {
+    await open(page, "decisions/index.html", 1280);
+    const link = page.locator(".site-nav a", { hasText: "Timeline" });
+    const tip = page.locator(`#${await link.getAttribute("aria-describedby")}`);
+    await expect(tip).toBeHidden();
+    await link.hover();
+    await expect(tip).toBeVisible();
+    await tip.hover();
+    await expect(tip).toBeVisible();
+    const { violations } = await new AxeBuilder({ page }).include(`#${await tip.getAttribute("id")}`)
+      .withTags([...TAGS, "wcag2aaa"]).analyze();
+    expect(violations).toEqual([]);
+    await page.keyboard.press("Escape");
+    await expect(tip).toBeHidden();
+    await page.mouse.move(640, 700);
+    await link.focus();
+    await expect(tip).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(tip).toBeHidden();
+  });
+
   test("filters work with the keyboard", async ({ page }) => {
     await open(page, "decisions/index.html", 1280);
     const count = page.locator("[data-filter-count]");

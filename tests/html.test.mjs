@@ -76,7 +76,7 @@ test("pageShell groups the navigation by reader, each group in reading order", (
   assert.ok(html.includes('<p class="nav-label" id="nav-record">How we worked with Claude Code</p>'));
   assert.ok(html.includes('<p class="nav-label" id="nav-reuse">Rerun and build on it</p>'));
   assert.deepEqual(groupLabels(html, "nav-record"),
-    ["Home", "Contributions", "Decisions", "Results", "Timeline", "Progress", "Process", "Records", "Notebook"]);
+    ["Home", "Process", "Timeline", "Progress", "Decisions", "Contributions", "Records", "Results", "Notebook"]);
   assert.deepEqual(groupLabels(html, "nav-reuse"),
     ["Analysis", "Description loops", "Releases", "Repository"]);
   assert.ok(html.indexOf('id="nav-record"') < html.indexOf('id="nav-reuse"'));
@@ -86,6 +86,42 @@ test("the second navigation group sits at the right edge on wide screens", () =>
   const css = themeCss(DEFAULT_TOKENS);
   assert.ok(/\.site-nav \{[^}]*display: flex;[^}]*justify-content: space-between;/.test(css));
   assert.ok(/@media \(min-width: 900px\) \{[^]*\.nav-reuse \{[^}]*margin-left: auto;[^}]*text-align: right;/.test(css));
+});
+
+// Each navigation link with its description: [label, aria-describedby, tooltip id, tooltip text].
+const navTips = (html) => [...html.matchAll(
+  /<li><a [^>]*aria-describedby="([^"]+)"[^>]*>([^<]*)<\/a><span class="nav-tip" id="([^"]+)" role="tooltip"><span>([^<]*)<\/span><\/span><\/li>/g,
+)].map((x) => [x[2], x[1], x[3], x[4]]);
+
+test("each navigation link has a description for screen readers, hover and keyboard focus", () => {
+  const m = model();
+  m.config.pages = [
+    { file: "a.html", title: "Analysis notebook", path: "pages/a.html", group: "reuse", description: "Remakes every table." },
+    { file: "b.html", title: "Plain", path: "pages/b.html", group: "reuse" },
+  ];
+  const html = pageShell({ path: "index.html", title: "Home", body: "", model: m });
+  const tips = navTips(html);
+  const labels = tips.map(([label]) => label);
+  assert.deepEqual(labels, ["Home", "Process", "Timeline", "Progress", "Decisions", "Contributions", "Records",
+    "Results", "Analysis notebook", "Releases", "Repository"]);
+  for (const [label, ref, id, text] of tips) {
+    assert.equal(ref, id, label);
+    assert.ok(text.length > 10, label);
+  }
+  assert.equal(new Set(tips.map(([, , id]) => id)).size, tips.length, "unique tooltip ids");
+  assert.equal(tips.find(([label]) => label === "Analysis notebook")[3], "Remakes every table.");
+  // An extra page with no description gets a plain link.
+  assert.match(html, /<li><a href="pages\/b\.html">Plain<\/a><\/li>/);
+});
+
+test("hover and focus show a description; Escape closes it until the pointer or focus leaves", () => {
+  const css = themeCss(DEFAULT_TOKENS);
+  const show = css.search(/\.site-nav li:hover \.nav-tip, \.site-nav li:focus-within \.nav-tip \{[^}]*display: block;/);
+  const close = css.search(/\.site-nav li\.tip-closed \.nav-tip \{[^}]*display: none;/);
+  assert.ok(show > 0 && close > show, "the close rule comes after the show rule");
+  assert.ok(/\.nav-tip \{[^}]*display: none;/.test(css));
+  const html = pageShell({ path: "index.html", title: "Home", body: "", model: model() });
+  assert.ok(html.includes('"Escape"') && html.includes("tip-closed"));
 });
 
 test("themeCss uses tokens only and has accessibility rules", () => {
