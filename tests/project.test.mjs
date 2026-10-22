@@ -119,6 +119,27 @@ test("a non-numeric cost_usd stops the build", () => {
     (dir) => assert.throws(() => loadProject(dir, OPTS), /calls\/jev-calls\.csv:4: cost_usd "free" is not a number/));
 });
 
+const BUDGETS = "replication_materials/calls/README.md";
+
+// A budget row joins its log by name: Service "jev" is the log jev-calls.csv.
+// A readable Service ("JEV API") left the log with no budget, and the Progress
+// page showed two services (a fine_tuned_jev record, D111).
+test("a call log that no budget row names stops the build", () => {
+  withChange(BUDGETS, (s) => s.replace("| jev |", "| JEV API |"),
+    (dir) => assert.throws(() => loadProject(dir, OPTS),
+      /calls\/jev-calls\.csv:1: no budget row in calls\/README\.md has the Service "jev"/));
+});
+
+// Compatibility: a budget row of a service with no call log yet (any Service
+// text) still builds, with 0 calls.
+test("a budget row with no call log has no calls", () => {
+  const row = "| 2026-10-04 | Open AI | Later probes | 10 | 1 | fmm |\n";
+  const openai = withChange(BUDGETS, (s) => s.replace(/(\| 2026-10-03 \| jev .*\n)/, `$1${row}`),
+    (dir) => loadProject(dir, OPTS).calls.services.find((s) => s.service === "Open AI"));
+  assert.equal(openai.calls, 0);
+  assert.equal(openai.maxCalls, 10);
+});
+
 test("site.config.json is checked at load", () => {
   const good = { project: "P", repository: "https://github.com/o/r", format_version: 1 };
   const cases = [

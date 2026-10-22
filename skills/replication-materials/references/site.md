@@ -125,7 +125,7 @@ The file is `.github/workflows/replication-site.yml`.
 - Permissions: none at the top level. The build job has `contents: read`. The deploy job has `pages: write` and `id-token: write`.
 - Concurrency group `pages`. A new run does not cancel a running deploy.
 - Each action is pinned to a full commit SHA, with the tag in a comment.
-- The first line is the version line, for example `# replication-materials 1.2.0`.
+- The first line is the version line, for example `# replication-materials 1.2.1`.
 - The workflow and the links of the website use the branch `main`. Set-up stops when the default branch is not `main`.
 - Check the run of the pushed commit: `gh run list --workflow replication-site.yml --commit "$(git rev-parse HEAD)" --limit 1`.
 - After the first push, if no run has started within 60 seconds, start it: `gh workflow run replication-site.yml --ref main`.
@@ -163,9 +163,10 @@ gh run watch "$(gh run list --workflow replication-site.yml --commit "$(git rev-
   - `.github/workflows/replication-site.yml`.
   - The block in `CLAUDE.md`, from `<!-- replication-materials:start -->` to `<!-- replication-materials:end -->`.
 - The records belong to the project. `.replication/site.config.json` also belongs to the project.
-- The build script and the workflow have a version line: `// replication-materials 1.2.0` and `# replication-materials 1.2.0`.
+- The build script and the workflow have a version line: `// replication-materials 1.2.1` and `# replication-materials 1.2.1`.
 - Version 1.1.0 adds extra pages, and its workflow runs on each push to `main`.
 - Version 1.2.0 adds releases, results, a timeline, a contributions page and more decision detail; all of them are optional.
+- Version 1.2.1 joins each budget row to its call log by name, and stops the build on a call log that no budget row names (`references/record-formats.md`, `calls/`).
 - `site.config.json` has `format_version`. The build reads format version 1.
 - When `format_version` is newer than the build script, the build stops. The message says "Run the update procedure of the replication-materials skill."
 - Set-up never replaces a file that exists. Only the update procedure replaces skill-owned files.
