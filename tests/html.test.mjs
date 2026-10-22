@@ -58,6 +58,36 @@ test("pageShell is a full accessible document", () => {
   assert.ok(doc.includes('href="../../../records/index.html"'));
 });
 
+// The link texts of one navigation group of a page, in order.
+const groupLabels = (html, id) => {
+  const list = html.match(new RegExp(`<ul aria-labelledby="${id}">([^]*?)</ul>`));
+  assert.ok(list, id);
+  return [...list[1].matchAll(/<a [^>]*>([^<]*)<\/a>/g)].map((x) => x[1]);
+};
+
+test("pageShell groups the navigation by reader, each group in reading order", () => {
+  const m = model();
+  m.config.pages = [
+    { file: "a.html", title: "Analysis", path: "pages/a.html" },
+    { file: "b.html", title: "Notebook", path: "pages/b.html", group: "record" },
+    { file: "c.html", title: "Description loops", path: "pages/c.html", group: "reuse" },
+  ];
+  const html = pageShell({ path: "index.html", title: "Home", body: "", model: m });
+  assert.ok(html.includes('<p class="nav-label" id="nav-record">How we worked with Claude Code</p>'));
+  assert.ok(html.includes('<p class="nav-label" id="nav-reuse">Rerun and build on it</p>'));
+  assert.deepEqual(groupLabels(html, "nav-record"),
+    ["Home", "Contributions", "Decisions", "Timeline", "Progress", "Process", "Records", "Notebook"]);
+  assert.deepEqual(groupLabels(html, "nav-reuse"),
+    ["Results", "Analysis", "Description loops", "Releases", "Repository"]);
+  assert.ok(html.indexOf('id="nav-record"') < html.indexOf('id="nav-reuse"'));
+});
+
+test("the second navigation group sits at the right edge on wide screens", () => {
+  const css = themeCss(DEFAULT_TOKENS);
+  assert.ok(/\.site-nav \{[^}]*display: flex;[^}]*justify-content: space-between;/.test(css));
+  assert.ok(/@media \(min-width: 900px\) \{[^]*\.nav-reuse \{[^}]*margin-left: auto;[^}]*text-align: right;/.test(css));
+});
+
 test("themeCss uses tokens only and has accessibility rules", () => {
   const css = themeCss(DEFAULT_TOKENS);
   const outside = css.slice(css.indexOf("}") + 1);

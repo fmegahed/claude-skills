@@ -252,7 +252,13 @@ test("an extra page gets a site path under pages/", () => {
   withPageFiles({ "analysis/report.html": "<p>x</p>" },
     { pages: [{ file: "analysis/report.html", title: "Analysis" }] },
     (dir) => assert.deepEqual(loadProject(dir, OPTS).config.pages,
-      [{ file: "analysis/report.html", title: "Analysis", path: "pages/report.html" }]));
+      [{ file: "analysis/report.html", title: "Analysis", path: "pages/report.html", group: "reuse" }]));
+});
+
+test("an extra page may name its navigation group; the default is reuse", () => {
+  withPageFiles({ "a.html": "x", "b.html": "x" },
+    { pages: [{ file: "a.html", title: "A", group: "record" }, { file: "b.html", title: "B" }] },
+    (dir) => assert.deepEqual(loadProject(dir, OPTS).config.pages.map((p) => p.group), ["record", "reuse"]));
 });
 
 test("extra pages are checked at load", () => {
@@ -270,6 +276,7 @@ test("extra pages are checked at load", () => {
     [[{ file: "folder", title: "R" }], /pages\[0\]\.file "folder" is not a file/],
     [[{ file: "a/same.html", title: "A" }, { file: "b/same.html", title: "B" }],
       /pages\[1\]\.file has the same file name as pages\[0\]\.file/],
+    [[{ file: "report.html", title: "R", group: "other" }], /pages\[0\]\.group must be "record" or "reuse"/],
   ];
   for (const [pages, re] of cases) {
     withPageFiles(files, { pages }, (dir) =>
