@@ -38,6 +38,7 @@
 | D32 | 2026-10-22 | This decision replaces the hover box of D31. The last row of the header is a description line: it shows the description of the current page, or of the link under the pointer or with the keyboard focus, and it covers nothing. Its text is white on the Accent Red (7.28:1, AAA). Screen readers get each description from its link (aria-describedby); the line is aria-hidden. fmm saw that the hover box covered the title of the page. | claude | fmm | question | "Description line in the header (Recommended)" (2026-10-22) | b36ad167-66f5-45af-9d6c-bf3f817c6f58 |
 | D33 | 2026-10-22 | Merge the pull request #1 (nav-groups, replication-materials 1.3.0) into main with a merge commit. | claude | fmm | chat | "Merge" (2026-10-22) | b36ad167-66f5-45af-9d6c-bf3f817c6f58 |
 | D34 | 2026-10-24 | Version 1.3.1 of replication-materials: the two navigation groups get short labels, Record and Reuse, in place of "How we worked with Claude Code" and "Rerun and build on it". Each label is one or two words that name what the group holds. | claude | fmm | chat | "Yes, use standalone 1-2 words that describe the tabs or info." (2026-10-24) | b36ad167-66f5-45af-9d6c-bf3f817c6f58 |
+| D35 | 2026-10-24 | Merge the pull request #2 (nav-labels, replication-materials 1.3.1) into main with a merge commit, after its tests passed. | fmm | fmm | chat | "Merge it and push the two local commits afterwards" (2026-10-24) | b36ad167-66f5-45af-9d6c-bf3f817c6f58 |
 
 ## Corrections
 
