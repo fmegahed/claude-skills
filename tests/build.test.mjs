@@ -74,7 +74,7 @@ test("an empty --out is refused and leaves the folder alone", () => {
   assert.equal(readFileSync(join(cwd, "index.html"), "utf8"), "mine");
 });
 
-test("every page names generator replication-materials 1.3.0", () => {
+test("every page names generator replication-materials 1.3.1", () => {
   const out = join(tmp(), "site");
   const r = run("tests/fixtures/full", out);
   assert.equal(r.status, 0, r.stderr);
@@ -86,6 +86,6 @@ test("every page names generator replication-materials 1.3.0", () => {
     assert.ok(pages.includes(page), page);
   }
   for (const page of pages) {
-    assert.match(readFileSync(join(out, page), "utf8"), /<meta name="generator" content="replication-materials 1\.3\.0">/, page);
+    assert.match(readFileSync(join(out, page), "utf8"), /<meta name="generator" content="replication-materials 1\.3\.1">/, page);
   }
 });

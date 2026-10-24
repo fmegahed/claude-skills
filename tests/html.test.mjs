@@ -73,8 +73,8 @@ test("pageShell groups the navigation by reader, each group in reading order", (
     { file: "c.html", title: "Description loops", path: "pages/c.html", group: "reuse" },
   ];
   const html = pageShell({ path: "index.html", title: "Home", body: "", model: m });
-  assert.ok(html.includes('<p class="nav-label" id="nav-record">How we worked with Claude Code</p>'));
-  assert.ok(html.includes('<p class="nav-label" id="nav-reuse">Rerun and build on it</p>'));
+  assert.ok(html.includes('<p class="nav-label" id="nav-record">Record</p>'));
+  assert.ok(html.includes('<p class="nav-label" id="nav-reuse">Reuse</p>'));
   assert.deepEqual(groupLabels(html, "nav-record"),
     ["Home", "Process", "Timeline", "Progress", "Decisions", "Contributions", "Records", "Results", "Notebook"]);
   assert.deepEqual(groupLabels(html, "nav-reuse"),

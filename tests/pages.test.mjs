@@ -134,8 +134,8 @@ test("Home lists the pages under the two reader groups, in navigation order", ()
   const home = withPages().get("index.html");
   const main = home.slice(home.indexOf('<main id="main">'));
   // Each page with its description as visible text, for screens with no hover.
-  assert.match(main, /<h3>How we worked with Claude Code<\/h3>\s*<ul>\s*<li><a href="process\/index\.html">Process<\/a>: [^<]{10,}<\/li>\s*<li><a href="timeline\/index\.html">Timeline<\/a>: [^<]{10,}<\/li>/);
-  assert.match(main, /<h3>Rerun and build on it<\/h3>\s*<ul>\s*<li><a href="pages\/report\.html">Analysis<\/a><\/li>\s*<li><a href="releases\/index\.html">Releases<\/a>: [^<]{10,}<\/li>\s*<li><a href="https:\/\/github\.com\/example\/fixture">Repository<\/a>: [^<]{10,}<\/li>\s*<\/ul>/);
+  assert.match(main, /<h3>Record<\/h3>\s*<ul>\s*<li><a href="process\/index\.html">Process<\/a>: [^<]{10,}<\/li>\s*<li><a href="timeline\/index\.html">Timeline<\/a>: [^<]{10,}<\/li>/);
+  assert.match(main, /<h3>Reuse<\/h3>\s*<ul>\s*<li><a href="pages\/report\.html">Analysis<\/a><\/li>\s*<li><a href="releases\/index\.html">Releases<\/a>: [^<]{10,}<\/li>\s*<li><a href="https:\/\/github\.com\/example\/fixture">Repository<\/a>: [^<]{10,}<\/li>\s*<\/ul>/);
 });
 
 test("extra pages are in the navigation of every page and on Home", () => {

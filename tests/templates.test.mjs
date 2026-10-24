@@ -59,7 +59,7 @@ test("templates build to a site", () => {
   for (const page of ["timeline", "contributions"]) {
     assert.ok(existsSync(join(out, page, "index.html")), page);
   }
-  assert.match(readFileSync(join(out, "index.html"), "utf8"), /replication-materials 1\.3\.0/);
+  assert.match(readFileSync(join(out, "index.html"), "utf8"), /replication-materials 1\.3\.1/);
 });
 
 test("set-up does not copy the optional templates (M2)", () => {
@@ -101,7 +101,7 @@ test("workflow pins every action to a SHA", () => {
 
 test("workflow gives each job only its permissions", () => {
   const y = read(".github/workflows/replication-site.yml");
-  assert.match(y, /^# replication-materials 1\.3\.0\n/);
+  assert.match(y, /^# replication-materials 1\.3\.1\n/);
   assert.match(y, /^permissions: \{\}$/m);
   assert.match(y, /pages:\s*\n(?:.*\n)*?\s+permissions:\s*\n\s+pages: write\n\s+id-token: write/);
   assert.doesNotMatch(y, /^  artifact:/m);
